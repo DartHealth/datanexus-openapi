@@ -17,7 +17,7 @@ fail() {
 expected_servers='[{"url":"https://{instance}.darthealth.com","description":"Your Data Nexus API host is issued at provisioning.","variables":{"instance":{"default":"datanexus"}}}]'
 
 # Rule 1: valid JSON, OpenAPI 3.x, at least one path
-if ! jq -e '(.openapi | type == "string" and startswith("3.")) and ((.paths // {}) | length > 0)' "$spec" >/dev/null 2>&1; then
+if ! jq -e '(.openapi | type == "string" and startswith("3.")) and (.paths | type == "object" and length > 0)' "$spec" >/dev/null 2>&1; then
   fail "openapi.json" 1 "not valid JSON, .openapi is not 3.x, or there are no paths"
 else
   # Rule 2: servers is exactly the server-variable object
@@ -91,8 +91,9 @@ for f in ${files[@]+"${files[@]}"}; do
   fi
 
   # Rule 7: something that looks like a Data Nexus API key (exactly 20
-  # url-safe base64 characters) after apikey / api_key / API_KEY
-  if grep -qiE 'api_?key[^A-Za-z0-9_-]{1,3}[A-Za-z0-9_-]{20}([^A-Za-z0-9_-]|$)' "$f"; then
+  # url-safe base64 characters) after apikey / api_key / API_KEY, allowing up
+  # to five separator characters (space, =, :, quotes) as in "api_key": "..."
+  if grep -qiE 'api_?key[^A-Za-z0-9_-]{1,5}[A-Za-z0-9_-]{20}([^A-Za-z0-9_-]|$)' "$f"; then
     fail "$rel" 7 "contains what looks like an API key"
   fi
 done
