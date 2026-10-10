@@ -60,7 +60,7 @@ host_reserved() {
 for f in ${files[@]+"${files[@]}"}; do
   rel="${f#"$root"/}"
 
-  # Rule 3: every http(s) URL's host is on the allowlist
+  # Rule 3: every URL's host, whatever its scheme, is on the allowlist
   while IFS= read -r url; do
     [ -z "$url" ] && continue
     host="${url#*://}"
@@ -71,10 +71,10 @@ for f in ${files[@]+"${files[@]}"}; do
     host="${host%%:*}"
     host="$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')"
     host_allowed "$host" || fail "$rel" 3 "URL host not allowed: $host"
-  done < <(grep -oiE 'https?://[^][[:space:]"'"'"'<>()`,]+' "$f" || true)
+  done < <(grep -oiE '[a-z][a-z0-9+.-]*://[^][[:space:]"'"'"'<>()`,]+' "$f" || true)
 
-  # Rule 4: localhost or an IPv4 address
-  if grep -qiE 'localhost|(^|[^0-9.])([0-9]{1,3}\.){3}[0-9]{1,3}([^0-9.]|$)' "$f"; then
+  # Rule 4: localhost or an IPv4 address (a sentence-ending period still counts)
+  if grep -qiE 'localhost|(^|[^0-9.])([0-9]{1,3}\.){3}[0-9]{1,3}\.?([^0-9.]|$)' "$f"; then
     fail "$rel" 4 "contains localhost or an IPv4 address"
   fi
 
@@ -95,6 +95,11 @@ for f in ${files[@]+"${files[@]}"}; do
   # to five separator characters (space, =, :, quotes) as in "api_key": "..."
   if grep -qiE 'api_?key[^A-Za-z0-9_-]{1,5}[A-Za-z0-9_-]{20}([^A-Za-z0-9_-]|$)' "$f"; then
     fail "$rel" 7 "contains what looks like an API key"
+  fi
+
+  # Rule 8: internal hostnames and AWS identifiers, with or without a scheme
+  if grep -qiE 'amazonaws\.com|arn:aws:|[a-z0-9-]\.(internal|local|lan|corp)([^a-z0-9.-]|\.?$|\.[^a-z0-9])' "$f"; then
+    fail "$rel" 8 "contains an internal hostname or AWS identifier"
   fi
 done
 
