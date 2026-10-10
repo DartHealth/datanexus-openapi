@@ -1,0 +1,31 @@
+name: Check spec
+
+# Runs the check-spec tests, then checks the published content (openapi.json,
+# README.md, docs/) for leaks. The main ruleset requires the check-spec job.
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions: {}
+
+jobs:
+  check-spec:
+    name: check-spec
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run check-spec tests
+        run: scripts/test/run.sh
+
+      - name: Check published content
+        run: scripts/check-spec.sh
