@@ -260,6 +260,31 @@
         "title": "ClaimsResponse",
         "type": "object"
       },
+      "CodedError": {
+        "additionalProperties": false,
+        "description": "A failure with a stable code",
+        "properties": {
+          "code": {
+            "description": "Stable reason for the failure. Branch on this, not on `detail`.",
+            "enum": [
+              "no_prevailing_sponsor_member",
+              "program_not_found",
+              "not_eligible_for_program"
+            ],
+            "type": "string"
+          },
+          "detail": {
+            "description": "Human-readable reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "detail"
+        ],
+        "title": "CodedError",
+        "type": "object"
+      },
       "Consent": {
         "description": "A response by a member to a request for legal consent",
         "example": {
@@ -381,6 +406,87 @@
         "title": "Enrollment",
         "type": "object"
       },
+      "EnrollmentCreateError": {
+        "description": "Response schema for a failed enrollment create",
+        "example": {
+          "errors": {
+            "code": "not_eligible_for_program",
+            "detail": "Member is not eligible for this program on the enrollment date."
+          }
+        },
+        "properties": {
+          "errors": {
+            "description": "A coded failure, a map of field errors, or a list of request validation errors.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "description": "A failure with a stable code",
+                "properties": {
+                  "code": {
+                    "description": "Stable reason for the failure. Branch on this, not on `detail`.",
+                    "enum": [
+                      "no_prevailing_sponsor_member",
+                      "program_not_found",
+                      "not_eligible_for_program"
+                    ],
+                    "type": "string"
+                  },
+                  "detail": {
+                    "description": "Human-readable reason",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "code",
+                  "detail"
+                ],
+                "title": "CodedError",
+                "type": "object"
+              },
+              {
+                "additionalProperties": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "description": "Attributes that were each valid but inconsistent, keyed by field name",
+                "title": "FieldErrors",
+                "type": "object"
+              },
+              {
+                "description": "The request did not match the request schema",
+                "items": {
+                  "properties": {
+                    "detail": {
+                      "type": "string"
+                    },
+                    "source": {
+                      "properties": {
+                        "pointer": {
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "title": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "title": "RequestValidationErrors",
+                "type": "array"
+              }
+            ]
+          }
+        },
+        "required": [
+          "errors"
+        ],
+        "title": "EnrollmentCreateError",
+        "type": "object"
+      },
       "EnrollmentRequest": {
         "description": "POST body for creating an enrollment",
         "properties": {
@@ -406,6 +512,17 @@
           }
         },
         "title": "EnrollmentResponse",
+        "type": "object"
+      },
+      "FieldErrors": {
+        "additionalProperties": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "description": "Attributes that were each valid but inconsistent, keyed by field name",
+        "title": "FieldErrors",
         "type": "object"
       },
       "HouseholdMember": {
@@ -918,6 +1035,30 @@
         "title": "ProgramsResponse",
         "type": "object"
       },
+      "RequestValidationErrors": {
+        "description": "The request did not match the request schema",
+        "items": {
+          "properties": {
+            "detail": {
+              "type": "string"
+            },
+            "source": {
+              "properties": {
+                "pointer": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "title": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "title": "RequestValidationErrors",
+        "type": "array"
+      },
       "WebhookSubscription": {
         "description": "A subscription to receive event notifications via a webhook callback URL",
         "example": {
@@ -1003,7 +1144,7 @@
     "contact": {
       "email": "developers@darthealth.com"
     },
-    "description": "Group Health and Benefits Data. Solved.\n---\nThis is the API for Dart Health's [Data Nexus](https://www.darthealth.com/product). It supports benefits Administrators, Providers, Employers, and Analysts who need to manage real-time information for eligible Program Members.\n\nIn order to authenticate your API requests, please include your API key in the header:\n\n```\nauthorization: apikey YOURAPIKEYHERE\n```\n\n## Client libraries:\n\n### Ruby\n\nA Ruby client is maintained for this API, the [`data_nexus`](https://rubygems.org/gems/data_nexus) gem, with its source at [github.com/DartHealth/datanexus-ruby](https://github.com/DartHealth/datanexus-ruby). It is optional, as every endpoint also works over plain HTTP. It handles:\n  * the `authorization: apikey` header and the base URL;\n  * checking a member search's parameters against the valid combinations before sending, raising `ArgumentError` for any other;\n  * adding `program_id` to enrollment and consent create requests;\n  * paging through `GET /api/members` and `GET /api/programs`;\n  * Error classes per failure, such as `DataNexus::UnprocessableEntityError`, and `DataNexus::RateLimitError` with `retry_after`.\n\nIt installs from RubyGems.org with `gem \"data_nexus\", \">= 0.3\"` in a Gemfile. `client.programs.list` needs version 0.3.0 or later. For example:\n```\nclient = DataNexus::Client.new(api_key: ENV[\"DATANEXUS_API_KEY\"], base_url: ENV[\"DATANEXUS_BASE_URL\"])\nprogram = client.programs.list(name: \"Example Program\").data.first\nclient.programs(program[:id]).search_members(born_on: \"1976-07-04\", employee_id: \"ABC1234\")\n```\n\nIt covers programs (`GET /api/programs`); program members, including search (`/api/programs/{program_id}/members/search`), list, show, update and household; members (`/api/members`: list, show, update); and each member's enrollments (`/api/members/{member_id}/enrollments`) and consents (`/api/members/{member_id}/consents`): create, show, update and delete.\n\n\n## About Dart Health\n\nMore info is available at [https://www.darthealth.com/](https://www.darthealth.com/).\n\n## CHANGELOG (newest entries first):\n\n* 2026-10-05 The reference describes `data_nexus`, the Ruby client for this API, and the endpoints it covers.\nIts server is now the path `/`, which resolves against the host that serves it.\n* 2026-10-02 List Members (`GET /api/members`) is no longer deprecated.\n* 2026-09-29 List programs now accepts the `first`, `last`, `after` and `before` paging\nparameters and a case-insensitive `name` filter, and returns `has_next_page` and\n`has_previous_page`. Invalid paging input returns 422. Show program now documents its\n`data` wrapper.\n* 2026-09-28 Member search now documents its result cap, that it cannot be paged, and what\n`more_results` means.\n* 2025-05-01 Member emails will now be provided as a list element, `emails`. We have deprecated `email` and\n`work_email` but will provide them until the next major API version update.\n",
+    "description": "Group Health and Benefits Data. Solved.\n---\nThis is the API for Dart Health's [Data Nexus](https://www.darthealth.com/product). It supports benefits Administrators, Providers, Employers, and Analysts who need to manage real-time information for eligible Program Members.\n\nIn order to authenticate your API requests, please include your API key in the header:\n\n```\nauthorization: apikey YOURAPIKEYHERE\n```\n\n## Client libraries:\n\n### Ruby\n\nA Ruby client is maintained for this API, the [`data_nexus`](https://rubygems.org/gems/data_nexus) gem, with its source at [github.com/DartHealth/datanexus-ruby](https://github.com/DartHealth/datanexus-ruby). It is optional, as every endpoint also works over plain HTTP. It handles:\n  * the `authorization: apikey` header and the base URL;\n  * checking a member search's parameters against the valid combinations before sending, raising `ArgumentError` for any other;\n  * adding `program_id` to enrollment and consent create requests;\n  * paging through `GET /api/members` and `GET /api/programs`;\n  * Error classes per failure, such as `DataNexus::UnprocessableEntityError`, and `DataNexus::RateLimitError` with `retry_after`.\n\nIt installs from RubyGems.org with `gem \"data_nexus\", \">= 0.3\"` in a Gemfile. `client.programs.list` needs version 0.3.0 or later. For example:\n```\nclient = DataNexus::Client.new(api_key: ENV[\"DATANEXUS_API_KEY\"], base_url: ENV[\"DATANEXUS_BASE_URL\"])\nprogram = client.programs.list(name: \"Example Program\").data.first\nclient.programs(program[:id]).search_members(born_on: \"1976-07-04\", employee_id: \"ABC1234\")\n```\n\nIt covers programs (`GET /api/programs`); program members, including search (`/api/programs/{program_id}/members/search`), list, show, update and household; members (`/api/members`: list, show, update); and each member's enrollments (`/api/members/{member_id}/enrollments`) and consents (`/api/members/{member_id}/consents`): create, show, update and delete.\n\n\n## About Dart Health\n\nMore info is available at [https://www.darthealth.com/](https://www.darthealth.com/).\n\n## CHANGELOG (newest entries first):\n\n* 2026-10-07 A failed enrollment create now says why. When the member or program is the problem,\nits `422` body carries an `errors.code` of `no_prevailing_sponsor_member`, `program_not_found` or\n`not_eligible_for_program`, where it previously said only \"Unprocessable Content\". Field and\nrequest validation errors keep their shapes, with no `code`. The status is still `422`.\n* 2026-10-05 The reference describes `data_nexus`, the Ruby client for this API, and the endpoints it covers.\nIts server is now the path `/`, which resolves against the host that serves it.\n* 2026-10-02 List Members (`GET /api/members`) is no longer deprecated.\n* 2026-09-29 List programs now accepts the `first`, `last`, `after` and `before` paging\nparameters and a case-insensitive `name` filter, and returns `has_next_page` and\n`has_previous_page`. Invalid paging input returns 422. Show program now documents its\n`data` wrapper.\n* 2026-09-28 Member search now documents its result cap, that it cannot be paged, and what\n`more_results` means.\n* 2025-05-01 Member emails will now be provided as a list element, `emails`. We have deprecated `email` and\n`work_email` but will provide them until the next major API version update.\n",
     "title": "DataNexus",
     "version": "1.0"
   },
@@ -1796,7 +1937,14 @@
             "description": "Enrollment"
           },
           "422": {
-            "$ref": "#/components/responses/unprocessable_entity"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnrollmentCreateError"
+                }
+              }
+            },
+            "description": "The enrollment was not created. The causes below all return `422`, so tell them apart by the shape of `errors`.\n\nWhen `errors` is an object with a `code`, branch on the code:\n\n* `no_prevailing_sponsor_member`: the member has no sponsor membership to enroll under.\n* `program_not_found`: `program_id` is missing, no program has that ID, or the program is not available to this API key.\n* `not_eligible_for_program`: the member's most recent sponsor membership has no active eligibility period for the program on the enrollment date. That date is the UTC date of `enrolled_at`, or today in UTC when it is absent. This is also the answer for another sponsor's program that this API key can see.\n\nWhen `errors` is an object without a `code`, it maps field names to messages: the attributes were each valid but inconsistent, such as an `expires_at` before `enrolled_at`.\n\nWhen `errors` is a list, the request did not match the request schema.\n"
           }
         },
         "summary": "Create enrollment",
