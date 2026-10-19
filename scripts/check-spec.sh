@@ -66,7 +66,7 @@ for f in ${files[@]+"${files[@]}"}; do
     host="${url#*://}"
     host="${host%%/*}"
     case "$host" in
-      *@*) fail "$rel" 3 "URL carries credentials: ${url%%@*}@..."; continue ;;
+      *@*) fail "$rel" 3 "a URL carries credentials (not printed)"; continue ;;
     esac
     host="${host%%:*}"
     host="$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')"
@@ -82,7 +82,7 @@ for f in ${files[@]+"${files[@]}"}; do
   while IFS= read -r email; do
     [ -z "$email" ] && continue
     lower="$(printf '%s' "$email" | tr '[:upper:]' '[:lower:]')"
-    email_allowed "$lower" || fail "$rel" 5 "email not allowed: $email"
+    email_allowed "$lower" || fail "$rel" 5 "email not allowed: ...@${lower#*@}"
   done < <(grep -oE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' "$f" || true)
 
   # Rule 6: SSN-shaped strings

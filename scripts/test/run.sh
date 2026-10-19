@@ -41,6 +41,16 @@ for case_dir in "$fixtures"/rule*; do
   fi
 done
 
+# A URL's credentials never appear in the failure output.
+root="$work/rule3-credentials"
+if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
+  bad "credentials: passed but should fail"
+elif printf '%s\n' "$out" | grep -qE 'deploy|s3cretTok'; then
+  bad "credentials: output prints the URL's userinfo: $out"
+else
+  echo "ok: credentials are not printed"
+fi
+
 # refresh-spec.sh: pins servers, sorts keys, reports changes.
 raw="$work/raw.json"
 jq '.servers = [{"url": "/", "variables": {}}]' "$fixtures/pass/openapi.json" > "$raw"
