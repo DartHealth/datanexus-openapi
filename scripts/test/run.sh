@@ -43,7 +43,7 @@ done
 
 # A URL's credentials never appear in the failure output.
 # The script lowercases hosts, so match case-insensitively.
-for name in rule3-credentials rule3-credentials-query rule3-credentials-fragment rule3-port-token; do
+for name in rule3-credentials rule3-credentials-query rule3-credentials-fragment rule3-port-token rule3-nested-url-encoded-credentials; do
   root="$work/$name"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
     bad "$name: passed but should fail"

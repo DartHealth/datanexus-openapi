@@ -86,12 +86,13 @@ for f in ${files[@]+"${files[@]}"}; do
   rel="${f#"$root"/}"
 
   # Rule 3: every URL's host, whatever its scheme, is on the allowlist,
-  # including a URL nested in another URL's query
+  # including a URL nested in another URL's query, percent-encoded or not
   while IFS= read -r url; do
     while [ -n "$url" ]; do
       rest="${url#*://}"
       check_url_host "$rel" "$rest"
-      url="$(printf '%s' "$rest" | grep -oiE '[a-z][a-z0-9+.-]*://.*' | head -n 1)"
+      url="$(printf '%s' "$rest" | sed -e 's/%3[Aa]/:/g' -e 's#%2[Ff]#/#g' -e 's/%40/@/g' \
+        | grep -oiE '[a-z][a-z0-9+.-]*://.*' | head -n 1)"
     done
   done < <(grep -oiE '[a-z][a-z0-9+.-]*://[^][[:space:]"'"'"'<>()`,]+' "$f" || true)
 
