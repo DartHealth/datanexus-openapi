@@ -8,7 +8,7 @@ set -euo pipefail
 spec_url="${SPEC_URL:-https://datanexus.darthealth.com/api/openapi}"
 dir="${SPEC_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 here="$(cd "$(dirname "$0")" && pwd)"
-servers='[{"url":"https://{instance}.darthealth.com","description":"Your Data Nexus API host is issued at provisioning.","variables":{"instance":{"default":"datanexus"}}}]'
+servers='[{"url":"https://datanexus.darthealth.com"},{"url":"https://{instance}.darthealth.com","description":"Your Data Nexus API host is issued at provisioning.","variables":{"instance":{"default":"datanexus"}}}]'
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT

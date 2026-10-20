@@ -7,6 +7,9 @@
   },
   "servers": [
     {
+      "url": "https://datanexus.darthealth.com"
+    },
+    {
       "url": "https://{instance}.darthealth.com",
       "description": "Your Data Nexus API host is issued at provisioning.",
       "variables": {
