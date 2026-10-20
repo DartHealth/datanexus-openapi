@@ -42,13 +42,35 @@ for case_dir in "$fixtures"/rule*; do
 done
 
 # A URL's credentials never appear in the failure output.
-root="$work/rule3-credentials"
-if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
-  bad "credentials: passed but should fail"
-elif printf '%s\n' "$out" | grep -qE 'deploy|s3cretTok'; then
-  bad "credentials: output prints the URL's userinfo: $out"
+for name in rule3-credentials rule3-credentials-query; do
+  root="$work/$name"
+  if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
+    bad "$name: passed but should fail"
+  elif printf '%s\n' "$out" | grep -qE 'deploy|s3cretTok'; then
+    bad "$name: output prints the URL's userinfo: $out"
+  else
+    echo "ok: $name credentials are not printed"
+  fi
+done
+
+# A host's query or fragment isn't part of the host: an allowed host passes
+# (an @ in the query isn't a credential), a disallowed one is named without it.
+root="$work/allowed-query"
+mkdir -p "$root"
+cp -R "$fixtures/pass/." "$root/"
+for url in 'https://www.darthealth.com?utm=x' 'https://www.darthealth.com#faq' 'https://www.darthealth.com?ref=a@b'; do
+  printf 'See %s\n' "$url" > "$root/docs/query.md"
+  if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
+    echo "ok: allowed $url"
+  else
+    bad "allowed $url failed: $out"
+  fi
+done
+out="$("$scripts/check-spec.sh" "$work/rule3-host-query" 2>&1)"
+if printf '%s\n' "$out" | grep -qx 'FAIL README.md: rule 3: URL host not allowed: internal\.example-corp\.io'; then
+  echo "ok: disallowed host is named without its query"
 else
-  echo "ok: credentials are not printed"
+  bad "disallowed host with a query: $out"
 fi
 
 # refresh-spec.sh: pins servers, sorts keys, reports changes.

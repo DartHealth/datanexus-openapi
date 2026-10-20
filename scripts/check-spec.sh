@@ -64,7 +64,7 @@ for f in ${files[@]+"${files[@]}"}; do
   while IFS= read -r url; do
     [ -z "$url" ] && continue
     host="${url#*://}"
-    host="${host%%/*}"
+    host="${host%%[/?#]*}"  # the authority ends at the path, query or fragment
     case "$host" in
       *@*) fail "$rel" 3 "a URL carries credentials (not printed)"; continue ;;
     esac
