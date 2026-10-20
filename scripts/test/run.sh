@@ -42,11 +42,12 @@ for case_dir in "$fixtures"/rule*; do
 done
 
 # A URL's credentials never appear in the failure output.
-for name in rule3-credentials rule3-credentials-query; do
+# The script lowercases hosts, so match case-insensitively.
+for name in rule3-credentials rule3-credentials-query rule3-credentials-fragment rule3-port-token; do
   root="$work/$name"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
     bad "$name: passed but should fail"
-  elif printf '%s\n' "$out" | grep -qE 'deploy|s3cretTok'; then
+  elif printf '%s\n' "$out" | grep -qiE 'deploy|s3cretTok'; then
     bad "$name: output prints the URL's userinfo: $out"
   else
     echo "ok: $name credentials are not printed"

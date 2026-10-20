@@ -43,6 +43,31 @@ host_allowed() {
   return 1
 }
 
+# Rule 3 for one URL, given without its scheme://. Never prints userinfo.
+check_url_host() {
+  local rel="$1" rest="$2" host port
+  host="${rest%%[/?#]*}"  # the authority ends at the path, query or fragment
+  case "$host" in
+    *@*) fail "$rel" 3 "a URL carries credentials (not printed)"; return ;;
+  esac
+  case "$host" in
+    *:*)
+      port="${host#*:}"
+      host="${host%%:*}"
+      case "$port" in
+        *[!0-9]*) fail "$rel" 3 "a URL's port isn't a number (not printed)"; return ;;
+      esac
+      ;;
+  esac
+  host="$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')"
+  host_allowed "$host" && return
+  # A ? or # inside userinfo cuts the authority short, so what's left may be a secret
+  case "${rest%%/*}" in
+    *@*) fail "$rel" 3 "URL host not allowed (not printed: it may carry credentials)" ;;
+    *) fail "$rel" 3 "URL host not allowed: $host" ;;
+  esac
+}
+
 email_allowed() {
   case "$1" in
     developers@darthealth.com | hello@darthealth.com) return 0 ;;
@@ -60,17 +85,14 @@ host_reserved() {
 for f in ${files[@]+"${files[@]}"}; do
   rel="${f#"$root"/}"
 
-  # Rule 3: every URL's host, whatever its scheme, is on the allowlist
+  # Rule 3: every URL's host, whatever its scheme, is on the allowlist,
+  # including a URL nested in another URL's query
   while IFS= read -r url; do
-    [ -z "$url" ] && continue
-    host="${url#*://}"
-    host="${host%%[/?#]*}"  # the authority ends at the path, query or fragment
-    case "$host" in
-      *@*) fail "$rel" 3 "a URL carries credentials (not printed)"; continue ;;
-    esac
-    host="${host%%:*}"
-    host="$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')"
-    host_allowed "$host" || fail "$rel" 3 "URL host not allowed: $host"
+    while [ -n "$url" ]; do
+      rest="${url#*://}"
+      check_url_host "$rel" "$rest"
+      url="$(printf '%s' "$rest" | grep -oiE '[a-z][a-z0-9+.-]*://.*' | head -n 1)"
+    done
   done < <(grep -oiE '[a-z][a-z0-9+.-]*://[^][[:space:]"'"'"'<>()`,]+' "$f" || true)
 
   # Rule 4: localhost or an IPv4 address (a sentence-ending period still counts)
