@@ -1,0 +1,1 @@
+Assume arn:aws:iam::123456789012:role/uploader first.

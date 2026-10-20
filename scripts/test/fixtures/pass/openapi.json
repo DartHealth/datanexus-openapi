@@ -1,0 +1,51 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Data Nexus",
+    "version": "1.0",
+    "description": "Include your API key in the header: `authorization: apikey YOURAPIKEYHERE`. Contact developers@darthealth.com."
+  },
+  "servers": [
+    {
+      "url": "https://datanexus.darthealth.com"
+    },
+    {
+      "url": "https://{instance}.darthealth.com",
+      "description": "Your Data Nexus API host is issued at provisioning.",
+      "variables": {
+        "instance": {
+          "default": "datanexus"
+        }
+      }
+    }
+  ],
+  "paths": {
+    "/api/members": {
+      "get": {
+        "summary": "List Members",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Webhook": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "example": "https://test.test"
+          },
+          "email": {
+            "type": "string",
+            "example": "abc@def.test"
+          }
+        }
+      }
+    }
+  }
+}

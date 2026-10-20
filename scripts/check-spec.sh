@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+# Checks the published content of this repo for leaks and for a spec that
+# isn't the one we mean to publish. Scans exactly openapi.json, README.md and
+# the files under docs/. Usage: scripts/check-spec.sh [ROOT]  (default: repo root)
+set -u
+
+root="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
+spec="$root/openapi.json"
+failures=0
+
+fail() {
+  echo "FAIL $1: rule $2: $3"
+  failures=$((failures + 1))
+}
+
+# The servers value every published spec must carry (design: openapi.json).
+# The concrete host comes first, for tools that ignore server variables.
+expected_servers='[{"url":"https://datanexus.darthealth.com"},{"url":"https://{instance}.darthealth.com","description":"Your Data Nexus API host is issued at provisioning.","variables":{"instance":{"default":"datanexus"}}}]'
+
+# Rule 1: valid JSON, OpenAPI 3.x, at least one path
+if ! jq -e '(.openapi | type == "string" and startswith("3.")) and (.paths | type == "object" and length > 0)' "$spec" >/dev/null 2>&1; then
+  fail "openapi.json" 1 "not valid JSON, .openapi is not 3.x, or there are no paths"
+else
+  # Rule 2: servers is exactly the published value, in order
+  if ! jq -e --argjson want "$expected_servers" '.servers == $want' "$spec" >/dev/null; then
+    fail "openapi.json" 2 ".servers is not the published servers value"
+  fi
+fi
+
+files=()
+for f in "$spec" "$root/README.md"; do
+  [ -f "$f" ] && files+=("$f")
+done
+if [ -d "$root/docs" ]; then
+  while IFS= read -r f; do files+=("$f"); done < <(find "$root/docs" -type f | sort)
+fi
+
+host_allowed() {
+  case "$1" in
+    darthealth.com | www.darthealth.com | datanexus.darthealth.com | trust.darthealth.com) return 0 ;;
+    "{instance}.darthealth.com" | github.com | raw.githubusercontent.com | rubygems.org) return 0 ;;
+    *.test | *.example | *.invalid | example.com | example.org | example.net) return 0 ;;
+  esac
+  return 1
+}
+
+# Rule 3 for one URL, given without its scheme://. Never prints userinfo.
+check_url_host() {
+  local rel="$1" rest="$2" host port
+  host="${rest%%[/?#]*}"  # the authority ends at the path, query or fragment
+  case "$host" in
+    *@*) fail "$rel" 3 "a URL carries credentials (not printed)"; return ;;
+  esac
+  case "$host" in
+    *:*)
+      port="${host#*:}"
+      host="${host%%:*}"
+      case "$port" in
+        *[!0-9]*) fail "$rel" 3 "a URL's port isn't a number (not printed)"; return ;;
+      esac
+      ;;
+  esac
+  host="$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')"
+  host_allowed "$host" && return
+  # A ? or # inside userinfo cuts the authority short, so what's left may be a secret
+  case "${rest%%/*}" in
+    *@*) fail "$rel" 3 "URL host not allowed (not printed: it may carry credentials)" ;;
+    *) fail "$rel" 3 "URL host not allowed: $host" ;;
+  esac
+}
+
+email_allowed() {
+  case "$1" in
+    developers@darthealth.com | hello@darthealth.com) return 0 ;;
+  esac
+  host_reserved "${1#*@}"
+}
+
+host_reserved() {
+  case "$1" in
+    *.test | *.example | *.invalid | example.com | example.org | example.net) return 0 ;;
+  esac
+  return 1
+}
+
+for f in ${files[@]+"${files[@]}"}; do
+  rel="${f#"$root"/}"
+
+  # Rule 3: every URL's host, whatever its scheme, is on the allowlist,
+  # including a URL nested in another URL's query, percent-encoded or not
+  while IFS= read -r url; do
+    while [ -n "$url" ]; do
+      rest="${url#*://}"
+      check_url_host "$rel" "$rest"
+      url="$(printf '%s' "$rest" | sed -e 's/%3[Aa]/:/g' -e 's#%2[Ff]#/#g' -e 's/%40/@/g' \
+        | grep -oiE '[a-z][a-z0-9+.-]*://.*' | head -n 1)"
+    done
+  done < <(grep -oiE '[a-z][a-z0-9+.-]*://[^][[:space:]"'"'"'<>()`,]+' "$f" || true)
+
+  # Rule 4: localhost or an IPv4 address (a sentence-ending period still counts)
+  if grep -qiE 'localhost|(^|[^0-9.])([0-9]{1,3}\.){3}[0-9]{1,3}\.?([^0-9.]|$)' "$f"; then
+    fail "$rel" 4 "contains localhost or an IPv4 address"
+  fi
+
+  # Rule 5: email addresses other than the allowed ones
+  while IFS= read -r email; do
+    [ -z "$email" ] && continue
+    lower="$(printf '%s' "$email" | tr '[:upper:]' '[:lower:]')"
+    email_allowed "$lower" || fail "$rel" 5 "email not allowed: ...@${lower#*@}"
+  done < <(grep -oE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' "$f" || true)
+
+  # Rule 6: SSN-shaped strings
+  if grep -qE '(^|[^0-9-])[0-9]{3}-[0-9]{2}-[0-9]{4}([^0-9-]|$)' "$f"; then
+    fail "$rel" 6 "contains an SSN-shaped string"
+  fi
+
+  # Rule 7: something that looks like a Data Nexus API key (exactly 20
+  # url-safe base64 characters) after apikey / api_key / API_KEY, allowing up
+  # to five separator characters (space, =, :, quotes) as in "api_key": "..."
+  if grep -qiE 'api_?key[^A-Za-z0-9_-]{1,5}[A-Za-z0-9_-]{20}([^A-Za-z0-9_-]|$)' "$f"; then
+    fail "$rel" 7 "contains what looks like an API key"
+  fi
+
+  # Rule 8: internal hostnames and AWS identifiers, with or without a scheme
+  if grep -qiE 'amazonaws\.com|arn:aws:|[a-z0-9-]\.(internal|local|lan|corp)([^a-z0-9.-]|\.?$|\.[^a-z0-9])' "$f"; then
+    fail "$rel" 8 "contains an internal hostname or AWS identifier"
+  fi
+done
+
+if [ "$failures" -gt 0 ]; then
+  echo "$failures check(s) failed"
+  exit 1
+fi
+echo "check-spec: OK (${#files[@]} files)"
