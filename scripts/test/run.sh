@@ -120,6 +120,20 @@ for src in "file://$work/missing.json" "file://$work/html.json" "file://$work/le
   fi
 done
 
+# refresh-spec.sh: a change report that fails (here, on an unreadable
+# previous copy) leaves openapi.json untouched.
+corrupt="$work/corrupt"
+mkdir -p "$corrupt"
+printf '{"openapi": "3.0.0",' > "$corrupt/openapi.json"
+cp "$corrupt/openapi.json" "$work/corrupt-before.json"
+if SPEC_URL="file://$raw" SPEC_DIR="$corrupt" "$scripts/refresh-spec.sh" >/dev/null 2>&1; then
+  bad "refresh succeeded over an unreadable openapi.json"
+elif ! cmp -s "$work/corrupt-before.json" "$corrupt/openapi.json"; then
+  bad "refresh changed openapi.json after its change report failed"
+else
+  echo "ok: refresh leaves openapi.json untouched when its report fails"
+fi
+
 if [ "$errors" -gt 0 ]; then
   echo "$errors test(s) failed"
   exit 1

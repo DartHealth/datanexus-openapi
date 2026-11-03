@@ -11,7 +11,7 @@ here="$(cd "$(dirname "$0")" && pwd)"
 servers='[{"url":"https://datanexus.darthealth.com"},{"url":"https://{instance}.darthealth.com","description":"Your Data Nexus API host is issued at provisioning.","variables":{"instance":{"default":"datanexus"}}}]'
 
 tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
+trap 'rm -rf "$tmp"; rm -f "$dir/.openapi.json.refresh"' EXIT
 
 curl -fsS --retry 3 --max-time 30 "$spec_url" -o "$tmp/raw.json"
 jq --sort-keys --indent 2 --argjson servers "$servers" '.servers = $servers' "$tmp/raw.json" > "$tmp/openapi.json"
@@ -32,9 +32,7 @@ mkdir -p "$tmp/root"
 cp "$tmp/openapi.json" "$tmp/root/openapi.json"
 "$here/check-spec.sh" "$tmp/root"
 
-cp "$tmp/openapi.json" "$dir/openapi.json"
-
-jq -rn --slurpfile old "$tmp/previous.json" --slurpfile new "$tmp/openapi.json" "
+report="$(jq -rn --slurpfile old "$tmp/previous.json" --slurpfile new "$tmp/openapi.json" "
   def ops: $ops; def schemas: $schemas;
   (\$new[0] | ops) as \$no | (\$old[0] | ops) as \$oo |
   (\$new[0] | schemas) as \$ns | (\$old[0] | schemas) as \$os |
@@ -42,4 +40,11 @@ jq -rn --slurpfile old "$tmp/previous.json" --slurpfile new "$tmp/openapi.json" 
   \"Operations removed: \((\$oo - \$no) | if length == 0 then \"none\" else join(\", \") end)\",
   \"Schemas added: \((\$ns - \$os) | if length == 0 then \"none\" else join(\", \") end)\",
   \"Schemas removed: \((\$os - \$ns) | if length == 0 then \"none\" else join(\", \") end)\"
-"
+")"
+
+# Replace openapi.json only once everything above has succeeded. Staging in
+# the same directory makes the mv a single rename, so it is never half-written.
+staged="$dir/.openapi.json.refresh"
+cp "$tmp/openapi.json" "$staged"
+mv "$staged" "$dir/openapi.json"
+printf '%s\n' "$report"
