@@ -14,8 +14,10 @@ fail() {
 }
 
 # The servers value every published spec must carry (design: openapi.json).
-# The concrete host comes first, for tools that ignore server variables.
-expected_servers='[{"url":"https://datanexus.darthealth.com"},{"url":"https://{instance}.darthealth.com","description":"Your Data Nexus API host is issued at provisioning.","variables":{"instance":{"default":"datanexus"}}}]'
+# No concrete host: each client has its own, and datanexus.darthealth.com is a
+# client's production instance. The default doesn't resolve, so a tool that
+# ignores server variables fails instead of sending requests to someone else.
+expected_servers='[{"url":"https://{instance}.darthealth.com","description":"Your Data Nexus API host is issued at provisioning.","variables":{"instance":{"default":"your-instance"}}}]'
 
 # Rule 1: valid JSON, OpenAPI 3.x, at least one path
 if ! jq -e '(.openapi | type == "string" and startswith("3.")) and (.paths | type == "object" and length > 0)' "$spec" >/dev/null 2>&1; then
