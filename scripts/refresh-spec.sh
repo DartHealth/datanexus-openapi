@@ -33,6 +33,8 @@ mkdir -p "$tmp/root"
 cp "$tmp/openapi.json" "$tmp/root/openapi.json"
 "$here/check-spec.sh" "$tmp/root" >&2  # stdout carries only the change report
 
+# If openapi.json is unreadable the report fails and nothing is replaced:
+# delete it and re-run.
 report="$(jq -rn --slurpfile old "$tmp/previous.json" --slurpfile new "$tmp/openapi.json" "
   def ops: $ops; def schemas: $schemas;
   (\$new[0] | ops) as \$no | (\$old[0] | ops) as \$oo |
@@ -48,5 +50,6 @@ report="$(jq -rn --slurpfile old "$tmp/previous.json" --slurpfile new "$tmp/open
 # rename, so it is never half-written; mktemp keeps concurrent runs apart.
 staged="$(mktemp "$dir/.openapi.json.refresh.XXXXXX")"
 cp "$tmp/openapi.json" "$staged"
+chmod 644 "$staged"  # mktemp makes it 0600, and mv would carry that over
 printf '%s\n' "$report"
 mv "$staged" "$dir/openapi.json"

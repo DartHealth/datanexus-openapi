@@ -80,13 +80,20 @@ jq '.servers = [{"url": "/", "variables": {}}]' "$fixtures/pass/openapi.json" > 
 dir="$work/refresh"
 mkdir -p "$dir"
 jq 'del(.paths["/api/members"])' "$fixtures/pass/openapi.json" > "$dir/openapi.json"
-if out="$(SPEC_URL="file://$raw" SPEC_DIR="$dir" "$scripts/refresh-spec.sh" 2>&1)"; then
+# stderr is dropped so a check-spec call that loses its >&2 shows up in stdout.
+if out="$(SPEC_URL="file://$raw" SPEC_DIR="$dir" "$scripts/refresh-spec.sh" 2>/dev/null)"; then
+  mode="$(stat -c %a "$dir/openapi.json" 2>/dev/null || stat -f %Lp "$dir/openapi.json")"
   if ! jq -e --slurpfile want "$fixtures/pass/openapi.json" '.servers == $want[0].servers' "$dir/openapi.json" >/dev/null; then
     bad "refresh: servers not pinned"
   elif ! cmp -s <(jq --sort-keys --indent 2 . "$dir/openapi.json") "$dir/openapi.json"; then
     bad "refresh: output keys not sorted"
   elif ! printf '%s\n' "$out" | grep -q "Operations added: GET /api/members"; then
     bad "refresh: change report missing the added operation: $out"
+  elif [ "$(printf '%s\n' "$out" | wc -l | tr -d ' ')" != 4 ] ||
+    [ "$(printf '%s\n' "$out" | cut -d: -f1 | paste -sd, -)" != "Operations added,Operations removed,Schemas added,Schemas removed" ]; then
+    bad "refresh: stdout is not exactly the four report lines: $out"
+  elif [ "$mode" != 644 ]; then
+    bad "refresh: openapi.json mode is $mode, want 644"
   else
     echo "ok: refresh"
   fi
@@ -146,6 +153,8 @@ if SPEC_URL="file://$raw" SPEC_DIR="$closed" "$scripts/refresh-spec.sh" >&- 2>/d
   bad "refresh succeeded with a closed stdout"
 elif ! cmp -s "$work/closed-before.json" "$closed/openapi.json"; then
   bad "refresh changed openapi.json before its report was written"
+elif compgen -G "$closed/.openapi.json.refresh.*" >/dev/null; then
+  bad "refresh left a staged file behind after failing"
 else
   echo "ok: refresh leaves openapi.json untouched when its report can't be written"
 fi
