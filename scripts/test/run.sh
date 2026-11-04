@@ -134,6 +134,20 @@ else
   echo "ok: refresh leaves openapi.json untouched when its report fails"
 fi
 
+# refresh-spec.sh: a report that can't be written (here, to a closed stdout)
+# leaves openapi.json untouched, so a retry still reports the change.
+closed="$work/closed-stdout"
+mkdir -p "$closed"
+jq 'del(.paths["/api/members"])' "$fixtures/pass/openapi.json" > "$closed/openapi.json"
+cp "$closed/openapi.json" "$work/closed-before.json"
+if SPEC_URL="file://$raw" SPEC_DIR="$closed" "$scripts/refresh-spec.sh" >&- 2>/dev/null; then
+  bad "refresh succeeded with a closed stdout"
+elif ! cmp -s "$work/closed-before.json" "$closed/openapi.json"; then
+  bad "refresh changed openapi.json before its report was written"
+else
+  echo "ok: refresh leaves openapi.json untouched when its report can't be written"
+fi
+
 if [ "$errors" -gt 0 ]; then
   echo "$errors test(s) failed"
   exit 1
