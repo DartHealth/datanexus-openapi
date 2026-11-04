@@ -111,9 +111,10 @@ for f in ${files[@]+"${files[@]}"}; do
 
   # Rule 3: datanexus.darthealth.com is a client's production instance. Every
   # mention, with or without a scheme, links only its public reference pages.
-  # The path isn't printed; it may name a record. cut drops the 24-character host.
-  # A browser autolinks up to whitespace or <, so .. is checked that far; the
-  # allowlist sees only the piece before a Markdown/HTML delimiter.
+  # The path isn't printed; it may name a record. awk prints what follows each
+  # mention of the host, up to the next mention, whitespace or <: a browser
+  # autolinks that far, so .. is checked over it, while the allowlist sees only
+  # the piece before a Markdown/HTML delimiter.
   while IFS= read -r after; do
     piece="$(printf '%s' "$after" | sed 's/[])>"'"'"'`].*//')"
     path="$(printf '%s' "${piece%%[?#]*}" | sed -E 's/[.,;:!]+$//')"
@@ -124,7 +125,15 @@ for f in ${files[@]+"${files[@]}"}; do
       "" | / | /swaggerui | /swaggerui/ | /api/openapi) ;;
       *) fail "$rel" 3 "path not allowed on datanexus.darthealth.com (not printed)" ;;
     esac
-  done < <(grep -oiE 'datanexus\.darthealth\.com[^<[:space:]]*' "$f" | cut -c25- || true)
+  done < <(awk -v h=datanexus.darthealth.com '{
+    line = $0; low = tolower(line)
+    while ((i = index(low, h)) > 0) {
+      line = substr(line, i + length(h)); low = substr(low, i + length(h))
+      j = index(low, h); span = j ? substr(line, 1, j - 1) : line
+      sub(/[< \t\r\f\v].*/, "", span)
+      print span
+    }
+  }' "$f")
 
   # Rule 3, without a scheme: every darthealth.com subdomain named is allowed.
   # Userinfo is dropped first so a password is never printed as a host; only
