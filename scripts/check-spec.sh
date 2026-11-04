@@ -27,6 +27,11 @@ else
   fi
 fi
 
+# Rule 1, too: the files every published copy carries are present
+for req in README.md docs/when-to-use.md; do
+  [ -f "$root/$req" ] || fail "$req" 1 "required file is missing"
+done
+
 files=()
 for f in "$spec" "$root/README.md"; do
   [ -f "$f" ] && files+=("$f")

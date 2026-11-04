@@ -23,6 +23,21 @@ else
   bad "pass fixture failed: $out"
 fi
 
+# A root missing a file every published copy needs fails on rule 1.
+for req in README.md docs/when-to-use.md; do
+  root="$work/missing-${req//\//-}"
+  mkdir -p "$root"
+  cp -R "$fixtures/pass/." "$root/"
+  rm "$root/$req"
+  if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
+    bad "missing $req passed but should fail on rule 1"
+  elif ! printf '%s\n' "$out" | grep -q "^FAIL $req: rule 1:"; then
+    bad "missing $req failed, but not on rule 1: $out"
+  else
+    echo "ok: missing $req"
+  fi
+done
+
 # Each failing fixture fails, and fails on the rule its name says.
 for case_dir in "$fixtures"/rule*; do
   name="$(basename "$case_dir")"
@@ -81,6 +96,7 @@ raw="$work/raw.json"
 jq '.servers = [{"url": "/", "variables": {}}]' "$fixtures/pass/openapi.json" > "$raw"
 dir="$work/refresh"
 mkdir -p "$dir"
+cp -R "$fixtures/pass/." "$dir/"
 jq 'del(.paths["/api/members"])' "$fixtures/pass/openapi.json" > "$dir/openapi.json"
 if out="$(SPEC_URL="file://$raw" SPEC_DIR="$dir" "$scripts/refresh-spec.sh" 2>&1)"; then
   if ! jq -e --slurpfile want "$fixtures/pass/openapi.json" '.servers == $want[0].servers' "$dir/openapi.json" >/dev/null; then
