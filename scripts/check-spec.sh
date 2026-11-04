@@ -67,6 +67,10 @@ check_url_host() {
   esac
   host="$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')"
   host_allowed "$host" && return
+  # %2F, | and the like don't end the cut above, so what's left may hold a path
+  case "$host" in
+    *[!a-z0-9.-]*) fail "$rel" 3 "URL host not allowed (not printed: not a plain hostname)"; return ;;
+  esac
   # A ? or # inside userinfo cuts the authority short, so what's left may be a secret
   case "${rest%%/*}" in
     *@*) fail "$rel" 3 "URL host not allowed (not printed: it may carry credentials)" ;;
@@ -118,8 +122,8 @@ for f in ${files[@]+"${files[@]}"}; do
   while IFS= read -r after; do
     piece="$(printf '%s' "$after" | sed 's/[])>"'"'"'`].*//')"
     path="$(printf '%s' "${piece%%[?#]*}" | sed -E 's/[.,;:!]+$//')"
-    # A query or fragment can carry a record path too (?url=/admin/...)
-    case "${piece#"${piece%%[?#]*}"}" in */* | *%2[Ff]*) path=query ;; esac
+    # A query or fragment can carry a record path too (?url=/admin/...); \ resolves as /
+    case "${piece#"${piece%%[?#]*}"}" in */* | *%2[Ff]* | *\\* | *%5[Cc]*) path=query ;; esac
     case "$after" in *..* | *%2[Ee]*) path=traversal ;; esac
     case "$path" in
       "" | / | /swaggerui | /swaggerui/ | /api/openapi) ;;
