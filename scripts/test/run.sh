@@ -43,7 +43,7 @@ done
 
 # A URL's credentials never appear in the failure output.
 # The script lowercases hosts, so match case-insensitively.
-for name in rule3-credentials rule3-credentials-query rule3-credentials-fragment rule3-port-token rule3-nested-url-encoded-credentials; do
+for name in rule3-credentials rule3-credentials-query rule3-credentials-fragment rule3-credentials-subdomain-password rule3-port-token rule3-nested-url-encoded-credentials; do
   root="$work/$name"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
     bad "$name: passed but should fail"
@@ -59,7 +59,9 @@ done
 root="$work/allowed-query"
 mkdir -p "$root"
 cp -R "$fixtures/pass/." "$root/"
-for url in 'https://www.darthealth.com?utm=x' 'https://www.darthealth.com#faq' 'https://www.darthealth.com?ref=a@b'; do
+for url in 'https://www.darthealth.com?utm=x' 'https://www.darthealth.com#faq' 'https://www.darthealth.com?ref=a@b' \
+  'https://datanexus.darthealth.com?ref=x' 'https://datanexus.darthealth.com/?ref=x' 'https://datanexus.darthealth.com#top' \
+  'https://customer.darthealth.com.example/'; do
   printf 'See %s\n' "$url" > "$root/docs/query.md"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
     echo "ok: allowed $url"

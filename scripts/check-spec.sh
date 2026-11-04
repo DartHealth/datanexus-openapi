@@ -65,8 +65,9 @@ check_url_host() {
     # datanexus.darthealth.com is a client's production instance: link only its
     # public reference pages. The path isn't printed; it may name a record.
     if [ "$host" = datanexus.darthealth.com ]; then
-      case "${rest#"${rest%%[/?#]*}"}" in
-        "" | / | /swaggerui | /swaggerui[/?#.]* | /api/openapi | /api/openapi[?#.]*) ;;
+      local path="${rest#"${rest%%[/?#]*}"}"
+      case "${path%%[?#]*}" in
+        "" | / | /swaggerui | /swaggerui[/.]* | /api/openapi | /api/openapi.*) ;;
         *) fail "$rel" 3 "URL path not allowed on datanexus.darthealth.com (not printed)" ;;
       esac
     fi
@@ -107,11 +108,14 @@ for f in ${files[@]+"${files[@]}"}; do
     done
   done < <(grep -oiE '[a-z][a-z0-9+.-]*://[^][[:space:]"'"'"'<>()`,]+' "$f" || true)
 
-  # Rule 3, without a scheme: every darthealth.com subdomain named is allowed
+  # Rule 3, without a scheme: every darthealth.com subdomain named is allowed.
+  # URL userinfo is dropped first so a password is never printed as a host, and
+  # each match is a whole hostname, so a longer domain isn't a darthealth.com one.
   while IFS= read -r name; do
-    [ -z "$name" ] && continue
+    case "$name" in *.darthealth.com) ;; *) continue ;; esac
     host_allowed "$name" || fail "$rel" 3 "host not allowed: $name"
-  done < <(grep -oiE '([a-z0-9-]+\.)+darthealth\.com' "$f" | tr '[:upper:]' '[:lower:]' | sort -u)
+  done < <(sed -E 's#://[^/[:space:]]*@#://#g' "$f" \
+    | grep -oiE '([a-z0-9-]+\.)+darthealth\.com(\.[a-z0-9-]+)*' | tr '[:upper:]' '[:lower:]' | sort -u)
 
   # Rule 4: localhost or an IPv4 address (a sentence-ending period still counts)
   if grep -qiE 'localhost|(^|[^0-9.])([0-9]{1,3}\.){3}[0-9]{1,3}\.?([^0-9.]|$)' "$f"; then
