@@ -73,7 +73,7 @@ done
 # A path on the production host never appears in the failure output: it may name a record.
 for name in rule3-admin-path rule3-prod-path-dotdot rule3-prod-path-encoded-dotdot rule3-prod-path-openapi-dotdot \
   rule3-prod-path-comma-dotdot rule3-prod-path-protocol-relative rule3-prod-path-no-scheme rule3-prod-path-api \
-  rule3-prod-path-backslash; do
+  rule3-prod-path-backslash rule3-prod-path-paren-dotdot rule3-prod-path-quote-dotdot rule3-prod-path-query-path; do
   out="$("$scripts/check-spec.sh" "$work/$name" 2>&1)"
   if printf '%s\n' "$out" | grep -qE 'sponsor_members|admin/users|api/members'; then
     bad "$name: output prints the path: $out"

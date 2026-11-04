@@ -112,23 +112,29 @@ for f in ${files[@]+"${files[@]}"}; do
   # Rule 3: datanexus.darthealth.com is a client's production instance. Every
   # mention, with or without a scheme, links only its public reference pages.
   # The path isn't printed; it may name a record. cut drops the 24-character host.
+  # A browser autolinks up to whitespace or <, so .. is checked that far; the
+  # allowlist sees only the piece before a Markdown/HTML delimiter.
   while IFS= read -r after; do
-    path="$(printf '%s' "${after%%[?#]*}" | sed -E 's/[.,;:!]+$//')"
+    piece="$(printf '%s' "$after" | sed 's/[])>"'"'"'`].*//')"
+    path="$(printf '%s' "${piece%%[?#]*}" | sed -E 's/[.,;:!]+$//')"
+    # A query or fragment can carry a record path too (?url=/admin/...)
+    case "${piece#"${piece%%[?#]*}"}" in */* | *%2[Ff]*) path=query ;; esac
     case "$after" in *..* | *%2[Ee]*) path=traversal ;; esac
     case "$path" in
       "" | / | /swaggerui | /swaggerui/ | /api/openapi) ;;
       *) fail "$rel" 3 "path not allowed on datanexus.darthealth.com (not printed)" ;;
     esac
-  done < <(grep -oiE 'datanexus\.darthealth\.com[^])<>"'"'"'`[:space:]]*' "$f" | cut -c25- || true)
+  done < <(grep -oiE 'datanexus\.darthealth\.com[^<[:space:]]*' "$f" | cut -c25- || true)
 
   # Rule 3, without a scheme: every darthealth.com subdomain named is allowed.
   # Userinfo is dropped first so a password is never printed as a host; only
-  # userinfo that can't hold a / ? # or @, so a query can't hide a host. Each
-  # match is a whole hostname, so a longer domain isn't a darthealth.com one.
+  # userinfo that can't hold a / ? # or @, so a query can't hide a host, and a
+  # schemeless user: token paired with the userinfo check above. Each match is
+  # a whole hostname, so a longer domain isn't a darthealth.com one.
   while IFS= read -r name; do
     case "$name" in *.darthealth.com) ;; *) continue ;; esac
     host_allowed "$name" || fail "$rel" 3 "host not allowed: $name"
-  done < <(sed -E 's,(:|//)[^/?#@[:space:]]*@,\1,g' "$f" \
+  done < <(sed -E 's,(//|(^|[^/A-Za-z0-9._~%+-])[A-Za-z0-9._~%+-]+:)[^/?#@[:space:]]*@,\1,g' "$f" \
     | grep -oiE '([a-z0-9-]+\.)+darthealth\.com(\.[a-z0-9-]+)*' | tr '[:upper:]' '[:lower:]' | sort -u)
 
   # Rule 4: localhost or an IPv4 address (a sentence-ending period still counts)
