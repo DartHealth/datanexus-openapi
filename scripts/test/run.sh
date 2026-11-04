@@ -124,6 +124,7 @@ done
 # previous copy) leaves openapi.json untouched.
 corrupt="$work/corrupt"
 mkdir -p "$corrupt"
+cp -R "$fixtures/pass/." "$corrupt/"
 printf '{"openapi": "3.0.0",' > "$corrupt/openapi.json"
 cp "$corrupt/openapi.json" "$work/corrupt-before.json"
 if SPEC_URL="file://$raw" SPEC_DIR="$corrupt" "$scripts/refresh-spec.sh" >/dev/null 2>&1; then
@@ -138,6 +139,7 @@ fi
 # leaves openapi.json untouched, so a retry still reports the change.
 closed="$work/closed-stdout"
 mkdir -p "$closed"
+cp -R "$fixtures/pass/." "$closed/"
 jq 'del(.paths["/api/members"])' "$fixtures/pass/openapi.json" > "$closed/openapi.json"
 cp "$closed/openapi.json" "$work/closed-before.json"
 if SPEC_URL="file://$raw" SPEC_DIR="$closed" "$scripts/refresh-spec.sh" >&- 2>/dev/null; then
