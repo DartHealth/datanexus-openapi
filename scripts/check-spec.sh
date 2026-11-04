@@ -49,10 +49,10 @@ host_allowed() {
   return 1
 }
 
-# Rule 3 for one URL, given without its scheme://. Never prints userinfo.
+# Rule 3 for one URL, given without its scheme:// or //. Never prints userinfo.
 check_url_host() {
   local rel="$1" rest="$2" host port
-  host="${rest%%[/?#]*}"  # the authority ends at the path, query or fragment
+  host="${rest%%[/?#\\]*}"  # the authority ends at the path, query or fragment; browsers read \ as /
   case "$host" in
     *@*) fail "$rel" 3 "a URL carries credentials (not printed)"; return ;;
   esac
@@ -66,18 +66,7 @@ check_url_host() {
       ;;
   esac
   host="$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')"
-  if host_allowed "$host"; then
-    # datanexus.darthealth.com is a client's production instance: link only its
-    # public reference pages. The path isn't printed; it may name a record.
-    if [ "$host" = datanexus.darthealth.com ]; then
-      local path="${rest#"${rest%%[/?#]*}"}"
-      case "${path%%[?#]*}" in
-        "" | / | /swaggerui | /swaggerui[/.]* | /api/openapi | /api/openapi.*) ;;
-        *) fail "$rel" 3 "URL path not allowed on datanexus.darthealth.com (not printed)" ;;
-      esac
-    fi
-    return
-  fi
+  host_allowed "$host" && return
   # A ? or # inside userinfo cuts the authority short, so what's left may be a secret
   case "${rest%%/*}" in
     *@*) fail "$rel" 3 "URL host not allowed (not printed: it may carry credentials)" ;;
@@ -103,23 +92,43 @@ for f in ${files[@]+"${files[@]}"}; do
   rel="${f#"$root"/}"
 
   # Rule 3: every URL's host, whatever its scheme, is on the allowlist,
-  # including a URL nested in another URL's query, percent-encoded or not
+  # including a protocol-relative //host and a URL nested in another URL's
+  # query, percent-encoded or not
   while IFS= read -r url; do
     while [ -n "$url" ]; do
-      rest="${url#*://}"
+      rest="${url#*//}"
       check_url_host "$rel" "$rest"
       url="$(printf '%s' "$rest" | sed -e 's/%3[Aa]/:/g' -e 's#%2[Ff]#/#g' -e 's/%40/@/g' \
         | grep -oiE '[a-z][a-z0-9+.-]*://.*' | head -n 1)"
     done
-  done < <(grep -oiE '[a-z][a-z0-9+.-]*://[^][[:space:]"'"'"'<>()`,]+' "$f" || true)
+  done < <(grep -oiE '([a-z][a-z0-9+.-]*:|(^|[^a-z0-9+./:-]))//[^][[:space:]"'"'"'<>()`,]+' "$f" || true)
+
+  # Rule 3: user:password@host written without a scheme. mailto: names an address.
+  if sed -E 's/[Mm][Aa][Ii][Ll][Tt][Oo]://g' "$f" \
+    | grep -qE '(^|[^/A-Za-z0-9._~%+-])[A-Za-z0-9._~%+-]+:[^/?#@[:space:]]*@'; then
+    fail "$rel" 3 "userinfo without a scheme (not printed)"
+  fi
+
+  # Rule 3: datanexus.darthealth.com is a client's production instance. Every
+  # mention, with or without a scheme, links only its public reference pages.
+  # The path isn't printed; it may name a record. cut drops the 24-character host.
+  while IFS= read -r after; do
+    path="$(printf '%s' "${after%%[?#]*}" | sed -E 's/[.,;:!]+$//')"
+    case "$after" in *..* | *%2[Ee]*) path=traversal ;; esac
+    case "$path" in
+      "" | / | /swaggerui | /swaggerui/ | /api/openapi) ;;
+      *) fail "$rel" 3 "path not allowed on datanexus.darthealth.com (not printed)" ;;
+    esac
+  done < <(grep -oiE 'datanexus\.darthealth\.com[^])<>"'"'"'`[:space:]]*' "$f" | cut -c25- || true)
 
   # Rule 3, without a scheme: every darthealth.com subdomain named is allowed.
-  # URL userinfo is dropped first so a password is never printed as a host, and
-  # each match is a whole hostname, so a longer domain isn't a darthealth.com one.
+  # Userinfo is dropped first so a password is never printed as a host; only
+  # userinfo that can't hold a / ? # or @, so a query can't hide a host. Each
+  # match is a whole hostname, so a longer domain isn't a darthealth.com one.
   while IFS= read -r name; do
     case "$name" in *.darthealth.com) ;; *) continue ;; esac
     host_allowed "$name" || fail "$rel" 3 "host not allowed: $name"
-  done < <(sed -E 's#://[^/[:space:]]*@#://#g' "$f" \
+  done < <(sed -E 's,(:|//)[^/?#@[:space:]]*@,\1,g' "$f" \
     | grep -oiE '([a-z0-9-]+\.)+darthealth\.com(\.[a-z0-9-]+)*' | tr '[:upper:]' '[:lower:]' | sort -u)
 
   # Rule 4: localhost or an IPv4 address (a sentence-ending period still counts)
