@@ -87,11 +87,9 @@ if out="$(SPEC_URL="file://$raw" SPEC_DIR="$dir" "$scripts/refresh-spec.sh" 2>/d
     bad "refresh: servers not pinned"
   elif ! cmp -s <(jq --sort-keys --indent 2 . "$dir/openapi.json") "$dir/openapi.json"; then
     bad "refresh: output keys not sorted"
-  elif ! printf '%s\n' "$out" | grep -q "Operations added: GET /api/members"; then
-    bad "refresh: change report missing the added operation: $out"
-  elif [ "$(printf '%s\n' "$out" | wc -l | tr -d ' ')" != 4 ] ||
-    [ "$(printf '%s\n' "$out" | cut -d: -f1 | paste -sd, -)" != "Operations added,Operations removed,Schemas added,Schemas removed" ]; then
-    bad "refresh: stdout is not exactly the four report lines: $out"
+  elif [ "$out" != "$(printf '%s\n' "Operations added: GET /api/members" "Operations removed: none" \
+    "Schemas added: none" "Schemas removed: none")" ]; then
+    bad "refresh: stdout is not exactly the expected change report: $out"
   elif [ "$mode" != 644 ]; then
     bad "refresh: openapi.json mode is $mode, want 644"
   else
