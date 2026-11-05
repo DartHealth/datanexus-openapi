@@ -23,6 +23,21 @@ else
   bad "pass fixture failed: $out"
 fi
 
+# A root missing a file every published copy needs fails on rule 1.
+for req in README.md docs/when-to-use.md; do
+  root="$work/missing-${req//\//-}"
+  mkdir -p "$root"
+  cp -R "$fixtures/pass/." "$root/"
+  rm "$root/$req"
+  if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
+    bad "missing $req passed but should fail on rule 1"
+  elif ! printf '%s\n' "$out" | grep -q "^FAIL $req: rule 1:"; then
+    bad "missing $req failed, but not on rule 1: $out"
+  else
+    echo "ok: missing $req"
+  fi
+done
+
 # Each failing fixture fails, and fails on the rule its name says.
 for case_dir in "$fixtures"/rule*; do
   name="$(basename "$case_dir")"
@@ -43,7 +58,8 @@ done
 
 # A URL's credentials never appear in the failure output.
 # The script lowercases hosts, so match case-insensitively.
-for name in rule3-credentials rule3-credentials-query rule3-credentials-fragment rule3-port-token rule3-nested-url-encoded-credentials; do
+for name in rule3-credentials rule3-credentials-query rule3-credentials-fragment rule3-credentials-subdomain-password rule3-port-token rule3-nested-url-encoded-credentials \
+  rule3-credentials-protocol-relative rule3-credentials-no-scheme rule3-credentials-no-scheme-subdomain-password; do
   root="$work/$name"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
     bad "$name: passed but should fail"
@@ -54,12 +70,33 @@ for name in rule3-credentials rule3-credentials-query rule3-credentials-fragment
   fi
 done
 
+# A path on the production host never appears in the failure output: it may name a record.
+for name in rule3-admin-path rule3-prod-path-dotdot rule3-prod-path-encoded-dotdot rule3-prod-path-openapi-dotdot \
+  rule3-prod-path-comma-dotdot rule3-prod-path-protocol-relative rule3-prod-path-no-scheme rule3-prod-path-api \
+  rule3-prod-path-backslash rule3-prod-path-paren-dotdot rule3-prod-path-quote-dotdot rule3-prod-path-query-path \
+  rule3-prod-path-adjacent-link rule3-prod-path-comma-link rule3-prod-host-encoded-path rule3-prod-host-nested-double-encoded \
+  rule3-prod-path-paren-encoded-dotdot rule3-prod-path-query-encoded-path rule3-prod-path-query-backslash; do
+  out="$("$scripts/check-spec.sh" "$work/$name" 2>&1)"
+  if printf '%s\n' "$out" | grep -qE 'sponsor_members|admin/users|api/members'; then
+    bad "$name: output prints the path: $out"
+  else
+    echo "ok: $name path is not printed"
+  fi
+done
+
 # A host's query or fragment isn't part of the host: an allowed host passes
 # (an @ in the query isn't a credential), a disallowed one is named without it.
 root="$work/allowed-query"
 mkdir -p "$root"
 cp -R "$fixtures/pass/." "$root/"
-for url in 'https://www.darthealth.com?utm=x' 'https://www.darthealth.com#faq' 'https://www.darthealth.com?ref=a@b'; do
+for url in 'https://www.darthealth.com?utm=x' 'https://www.darthealth.com#faq' 'https://www.darthealth.com?ref=a@b' \
+  'https://datanexus.darthealth.com?ref=x' 'https://datanexus.darthealth.com/?ref=x' 'https://datanexus.darthealth.com#top' \
+  'https://customer.darthealth.com.example/' 'customer.darthealth.com.au' \
+  'https://datanexus.darthealth.com/swaggerui' 'https://datanexus.darthealth.com/swaggerui?ref=x' 'https://datanexus.darthealth.com/swaggerui#top' \
+  'https://datanexus.darthealth.com/swaggerui/' 'https://datanexus.darthealth.com/swaggerui/?ref=x' 'https://datanexus.darthealth.com/swaggerui/#top' \
+  'https://datanexus.darthealth.com/api/openapi' 'https://datanexus.darthealth.com/api/openapi?ref=x' 'https://datanexus.darthealth.com/api/openapi#top' \
+  'https://datanexus.darthealth.com/swaggerui, then try it.' 'https://datanexus.darthealth.com/swaggerui.' \
+  'Email hello@darthealth.com' 'mailto:hello@darthealth.com'; do
   printf 'See %s\n' "$url" > "$root/docs/query.md"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
     echo "ok: allowed $url"
@@ -79,6 +116,7 @@ raw="$work/raw.json"
 jq '.servers = [{"url": "/", "variables": {}}]' "$fixtures/pass/openapi.json" > "$raw"
 dir="$work/refresh"
 mkdir -p "$dir"
+cp -R "$fixtures/pass/." "$dir/"
 jq 'del(.paths["/api/members"])' "$fixtures/pass/openapi.json" > "$dir/openapi.json"
 if out="$(SPEC_URL="file://$raw" SPEC_DIR="$dir" "$scripts/refresh-spec.sh" 2>&1)"; then
   if ! jq -e --slurpfile want "$fixtures/pass/openapi.json" '.servers == $want[0].servers' "$dir/openapi.json" >/dev/null; then
