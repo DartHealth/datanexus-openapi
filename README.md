@@ -53,6 +53,8 @@ Ruby: [`data_nexus`](https://rubygems.org/gems/data_nexus) ([source](https://git
 
 `openapi.json` is copied from production's live spec by `scripts/refresh-spec.sh` and lands through a reviewed pull request. `scripts/check-spec.sh` checks every change before it's published. Questions about the API go to developers@darthealth.com.
 
+Every pull request needs an approving review from a code owner listed in [`.github/CODEOWNERS`](.github/CODEOWNERS) before it can merge. An automated review, such as CodeRabbit's, doesn't count, and a push after the approval needs a fresh one.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
