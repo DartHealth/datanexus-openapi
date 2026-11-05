@@ -80,13 +80,18 @@ jq '.servers = [{"url": "/", "variables": {}}]' "$fixtures/pass/openapi.json" > 
 dir="$work/refresh"
 mkdir -p "$dir"
 jq 'del(.paths["/api/members"])' "$fixtures/pass/openapi.json" > "$dir/openapi.json"
-if out="$(SPEC_URL="file://$raw" SPEC_DIR="$dir" "$scripts/refresh-spec.sh" 2>&1)"; then
+# stderr is dropped so a check-spec call that loses its >&2 shows up in stdout.
+if out="$(SPEC_URL="file://$raw" SPEC_DIR="$dir" "$scripts/refresh-spec.sh" 2>/dev/null)"; then
+  mode="$(stat -c %a "$dir/openapi.json" 2>/dev/null || stat -f %Lp "$dir/openapi.json")"
   if ! jq -e --slurpfile want "$fixtures/pass/openapi.json" '.servers == $want[0].servers' "$dir/openapi.json" >/dev/null; then
     bad "refresh: servers not pinned"
   elif ! cmp -s <(jq --sort-keys --indent 2 . "$dir/openapi.json") "$dir/openapi.json"; then
     bad "refresh: output keys not sorted"
-  elif ! printf '%s\n' "$out" | grep -q "Operations added: GET /api/members"; then
-    bad "refresh: change report missing the added operation: $out"
+  elif [ "$out" != "$(printf '%s\n' "Operations added: GET /api/members" "Operations removed: none" \
+    "Schemas added: none" "Schemas removed: none")" ]; then
+    bad "refresh: stdout is not exactly the expected change report: $out"
+  elif [ "$mode" != 644 ]; then
+    bad "refresh: openapi.json mode is $mode, want 644"
   else
     echo "ok: refresh"
   fi
@@ -119,6 +124,39 @@ for src in "file://$work/missing.json" "file://$work/html.json" "file://$work/le
     echo "ok: refresh refuses $(basename "$src")"
   fi
 done
+
+# refresh-spec.sh: a change report that fails (here, on an unreadable
+# previous copy) leaves openapi.json untouched.
+corrupt="$work/corrupt"
+mkdir -p "$corrupt"
+cp -R "$fixtures/pass/." "$corrupt/"
+printf '{"openapi": "3.0.0",' > "$corrupt/openapi.json"
+cp "$corrupt/openapi.json" "$work/corrupt-before.json"
+if SPEC_URL="file://$raw" SPEC_DIR="$corrupt" "$scripts/refresh-spec.sh" >/dev/null 2>&1; then
+  bad "refresh succeeded over an unreadable openapi.json"
+elif ! cmp -s "$work/corrupt-before.json" "$corrupt/openapi.json"; then
+  bad "refresh changed openapi.json after its change report failed"
+else
+  echo "ok: refresh leaves openapi.json untouched when its report fails"
+fi
+
+# refresh-spec.sh: a report that cannot be written (stdout open read-only, so every
+# write fails with EBADF; a closed fd 1 gets reused by the next open on Linux)
+# leaves openapi.json untouched, so a retry still reports the change.
+closed="$work/closed-stdout"
+mkdir -p "$closed"
+cp -R "$fixtures/pass/." "$closed/"
+jq 'del(.paths["/api/members"])' "$fixtures/pass/openapi.json" > "$closed/openapi.json"
+cp "$closed/openapi.json" "$work/closed-before.json"
+if SPEC_URL="file://$raw" SPEC_DIR="$closed" "$scripts/refresh-spec.sh" 1</dev/null 2>/dev/null; then
+  bad "refresh succeeded with a closed stdout"
+elif ! cmp -s "$work/closed-before.json" "$closed/openapi.json"; then
+  bad "refresh changed openapi.json before its report was written"
+elif compgen -G "$closed/.openapi.json.refresh.*" >/dev/null; then
+  bad "refresh left a staged file behind after failing"
+else
+  echo "ok: refresh leaves openapi.json untouched when its report can't be written"
+fi
 
 if [ "$errors" -gt 0 ]; then
   echo "$errors test(s) failed"
