@@ -293,6 +293,55 @@
             "sms_phone_number": "+15558675309"
           },
           "consented_at": "2022-01-01T22:01:00Z",
+          "id": 123,
+          "member_id": "aCeYh",
+          "member_response": true,
+          "program_id": "180badec-7a57-4116-8814-909b020427fd"
+        },
+        "properties": {
+          "category": {
+            "description": "Category",
+            "type": "string"
+          },
+          "consent_details": {
+            "additionalProperties": true,
+            "nullable": true,
+            "type": "object"
+          },
+          "consented_at": {
+            "description": "Date / Time of Consent",
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "description": "Unique identifier",
+            "type": "integer"
+          },
+          "member_id": {
+            "description": "Member identifier",
+            "type": "string"
+          },
+          "member_response": {
+            "type": "boolean"
+          },
+          "program_id": {
+            "description": "Program identifier",
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "title": "Consent",
+        "type": "object"
+      },
+      "ConsentAttributes": {
+        "description": "Consent attributes accepted by a create or update request",
+        "example": {
+          "category": "sms",
+          "consent_details": {
+            "sms_phone_number": "+15558675309"
+          },
+          "consented_at": "2022-01-01T22:01:00Z",
           "id": "123",
           "member_id": "aCeYh",
           "member_response": true,
@@ -330,7 +379,7 @@
             "type": "string"
           }
         },
-        "title": "Consent",
+        "title": "ConsentAttributes",
         "type": "object"
       },
       "ConsentRequest": {
@@ -339,7 +388,7 @@
           "consent": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/Consent"
+                "$ref": "#/components/schemas/ConsentAttributes"
               }
             ]
           }
@@ -384,6 +433,50 @@
             "format": "date-time",
             "type": "string"
           },
+          "enrollment_events": {
+            "description": "Enrollment events, when the endpoint loads them",
+            "items": {
+              "$ref": "#/components/schemas/EnrollmentEvent"
+            },
+            "type": "array"
+          },
+          "expires_at": {
+            "description": "Date / Time when the Enrollment expires",
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "description": "Record identifier",
+            "type": "integer"
+          },
+          "member_id": {
+            "description": "Member ID",
+            "type": "string"
+          },
+          "program_id": {
+            "description": "Program ID",
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "title": "Enrollment",
+        "type": "object"
+      },
+      "EnrollmentAttributes": {
+        "description": "Enrollment attributes accepted by a create or update request",
+        "example": {
+          "enrolled_at": "2022-01-01T22:01:00Z",
+          "expires_at": "2023-01-01T22:01:00Z",
+          "member_id": "AcEyH",
+          "program_id": "391b64c0-2c09-4c4d-a6f6-b923f14a0048"
+        },
+        "properties": {
+          "enrolled_at": {
+            "description": "Date / Time of Enrollment",
+            "format": "date-time",
+            "type": "string"
+          },
           "expires_at": {
             "description": "Date / Time when the Enrollment expires",
             "format": "date-time",
@@ -403,7 +496,7 @@
             "type": "string"
           }
         },
-        "title": "Enrollment",
+        "title": "EnrollmentAttributes",
         "type": "object"
       },
       "EnrollmentCreateError": {
@@ -487,13 +580,41 @@
         "title": "EnrollmentCreateError",
         "type": "object"
       },
+      "EnrollmentEvent": {
+        "description": "An event in the lifecycle of an Enrollment",
+        "example": {
+          "category": "created",
+          "details": {
+            "something": "someval"
+          },
+          "id": 789
+        },
+        "properties": {
+          "category": {
+            "description": "Event category",
+            "type": "string"
+          },
+          "details": {
+            "additionalProperties": true,
+            "description": "Event-specific attributes",
+            "nullable": true,
+            "type": "object"
+          },
+          "id": {
+            "description": "Record identifier",
+            "type": "integer"
+          }
+        },
+        "title": "EnrollmentEvent",
+        "type": "object"
+      },
       "EnrollmentRequest": {
         "description": "POST body for creating an enrollment",
         "properties": {
           "enrollment": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/Enrollment"
+                "$ref": "#/components/schemas/EnrollmentAttributes"
               }
             ]
           }
@@ -526,20 +647,121 @@
         "type": "object"
       },
       "HouseholdMember": {
-        "description": "A member in a primary member's household",
+        "description": "A program-eligible member of the requested member's household, rendered as the show endpoint renders a member, plus whether they are the household's primary",
+        "example": {
+          "born_on": "1975-05-15",
+          "city": "Newport Beach",
+          "consents": [
+            {
+              "category": "sms",
+              "consent_details": {
+                "sms_phone_number": "+15558675309"
+              },
+              "consented_at": "2024-01-02T12:00:00Z",
+              "id": 1234567890,
+              "member_id": "A5c7X",
+              "program_id": "ABCDE-13245-ABCDEFGH12345678"
+            }
+          ],
+          "eligibility_end_on": "2025-01-01",
+          "eligibility_start_on": "2024-01-01",
+          "email": "abc@def.test",
+          "employee_id": "BO12345",
+          "enrollments": [
+            {
+              "enrolled_at": "2024-01-02T12:05:00Z",
+              "expires_at": null,
+              "id": 2345678901,
+              "member_id": "A5c7X",
+              "program_id": "ABCDE-13245-ABCDEFGH12345678"
+            }
+          ],
+          "first_name": "Michael",
+          "gender": "male",
+          "group_number": "GRP-9001",
+          "health_plan_coverage_tier": "Employee Only",
+          "health_plan_description": "TestInsurer, Inc.",
+          "health_plan_identifier": "ABC123",
+          "health_plan_subscriber_id": "SUB-123456",
+          "household_primary": true,
+          "id": "A5c7X",
+          "insurance_identifiers": [
+            {
+              "id": "987654321",
+              "name": "bcbs"
+            }
+          ],
+          "last_name": "Bluth",
+          "middle_name": "George",
+          "option_id": "9743",
+          "parent_sponsor_member_identifier": null,
+          "phone_number": "+19875555550",
+          "postal_code": "92658",
+          "relationship_type": "PP",
+          "sponsor_member_identifier": "123456789",
+          "state": "CA",
+          "street_address_1": "1 Lucille Lane"
+        },
         "properties": {
           "born_on": {
             "description": "Date of birth",
             "format": "date",
             "type": "string"
           },
+          "city": {
+            "description": "City",
+            "nullable": true,
+            "type": "string"
+          },
+          "consents": {
+            "description": "Member consents for program",
+            "items": {
+              "$ref": "#/components/schemas/Consent"
+            },
+            "type": "array"
+          },
+          "country": {
+            "description": "Country",
+            "type": "string"
+          },
+          "custom_data": {
+            "additionalProperties": true,
+            "description": "Sponsor-specific member attributes the sponsor allows API users to read. Present only when there are some.",
+            "type": "object"
+          },
+          "eligibility_end_on": {
+            "description": "Date on which member is no longer eligible for services",
+            "format": "date",
+            "nullable": true,
+            "type": "string"
+          },
+          "eligibility_start_on": {
+            "description": "Date on which member is eligible for services",
+            "format": "date",
+            "nullable": true,
+            "type": "string"
+          },
           "email": {
+            "deprecated": true,
             "description": "email address",
             "format": "email",
+            "nullable": true,
+            "type": "string"
+          },
+          "emails": {
+            "description": "Member emails",
+            "items": {
+              "$ref": "#/components/schemas/MemberEmail"
+            },
+            "type": "array"
+          },
+          "employee_id": {
+            "description": "Employee ID",
+            "nullable": true,
             "type": "string"
           },
           "enrollments": {
-            "description": "Member enrollments",
+            "description": "Member enrollments in program",
             "items": {
               "$ref": "#/components/schemas/Enrollment"
             },
@@ -549,12 +771,131 @@
             "description": "First Name",
             "type": "string"
           },
-          "id": {
-            "description": "Unique identifier",
+          "gender": {
+            "description": "Gender",
+            "enum": [
+              "female",
+              "male",
+              "unknown"
+            ],
             "type": "string"
+          },
+          "group_number": {
+            "description": "Insurance group number",
+            "type": "string"
+          },
+          "health_plan_coverage_tier": {
+            "description": "Health Plan coverage tier",
+            "nullable": true,
+            "type": "string"
+          },
+          "health_plan_description": {
+            "description": "Health Plan description (usually insurance carrier name)",
+            "nullable": true,
+            "type": "string"
+          },
+          "health_plan_identifier": {
+            "description": "Health Plan Identifier",
+            "nullable": true,
+            "type": "string"
+          },
+          "health_plan_subscriber_id": {
+            "description": "Subscriber ID with the insurance provider",
+            "type": "string"
+          },
+          "household_primary": {
+            "description": "True when the member's own `sponsor_member_identifier` is their household identifier: their `parent_sponsor_member_identifier`, or their own identifier when that is empty. This rule is the same for every sponsor and does not use `relationship_type`. A household can have no primary, when the primary is not eligible for the program or isn't in the sponsor's data.",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "Datanexus Unique identifier",
+            "type": "string"
+          },
+          "insurance_identifiers": {
+            "description": "Member identifiers and other info for insurance providers",
+            "items": {
+              "$ref": "#/components/schemas/InsuranceIdentifier"
+            },
+            "type": "array"
           },
           "last_name": {
             "description": "Last Name",
+            "type": "string"
+          },
+          "middle_name": {
+            "description": "Middle Name",
+            "type": "string"
+          },
+          "option_id": {
+            "description": "Option ID",
+            "nullable": true,
+            "type": "string"
+          },
+          "parent_sponsor_member_identifier": {
+            "description": "Sponsor member identifier for parent member",
+            "nullable": true,
+            "type": "string"
+          },
+          "payment_card_number": {
+            "description": "Payment card number, when applicable",
+            "type": "string"
+          },
+          "phone_number": {
+            "description": "Phone Number",
+            "nullable": true,
+            "type": "string"
+          },
+          "postal_code": {
+            "description": "Postal Code",
+            "nullable": true,
+            "type": "string"
+          },
+          "relationship_type": {
+            "description": "Member relationship to parent member",
+            "nullable": true,
+            "type": "string"
+          },
+          "sponsor_member_identifier": {
+            "description": "Sponsor member identifier",
+            "nullable": true,
+            "type": "string"
+          },
+          "state": {
+            "description": "State",
+            "nullable": true,
+            "type": "string"
+          },
+          "street_address_1": {
+            "description": "Street Address (line 1)",
+            "nullable": true,
+            "type": "string"
+          },
+          "street_address_2": {
+            "description": "Street Address (line 2)",
+            "nullable": true,
+            "type": "string"
+          },
+          "vendor_data": {
+            "description": "Free-form vendor-specific member attributes. Writes upsert; reads return the array of vendor datasets accessible to the caller.",
+            "oneOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            ]
+          },
+          "work_email": {
+            "deprecated": true,
+            "description": "Employer-provided email address",
+            "format": "email",
+            "nullable": true,
             "type": "string"
           }
         },
@@ -562,7 +903,7 @@
         "type": "object"
       },
       "HouseholdMembersResponse": {
-        "description": "Response containing multiple Members in a household",
+        "description": "Response containing the program-eligible members of a household",
         "properties": {
           "data": {
             "items": {
@@ -583,18 +924,21 @@
       "InsuranceIdentifier": {
         "description": "Member identifier for an insurance provider",
         "properties": {
-          "coverage_begin_on": {
-            "description": "Date on which coverage begins",
-            "format": "date",
-            "type": "string"
-          },
           "coverage_end_on": {
             "description": "Date on which coverage ends",
             "format": "date",
+            "nullable": true,
+            "type": "string"
+          },
+          "coverage_start_on": {
+            "description": "Date on which coverage begins",
+            "format": "date",
+            "nullable": true,
             "type": "string"
           },
           "id": {
             "description": "Insurer-specific identifier",
+            "nullable": true,
             "type": "string"
           },
           "name": {
@@ -617,7 +961,7 @@
                 "sms_phone_number": "+15558675309"
               },
               "consented_at": "2024-01-02T12:00:00Z",
-              "id": "1234567890",
+              "id": 1234567890,
               "member_id": "A5c7X",
               "program_id": "ABCDE-13245-ABCDEFGH12345678"
             }
@@ -630,7 +974,7 @@
             {
               "enrolled_at": "2024-01-02T12:05:00Z",
               "expires_at": null,
-              "id": "2345678901",
+              "id": 2345678901,
               "member_id": "A5c7X",
               "program_id": "ABCDE-13245-ABCDEFGH12345678"
             }
@@ -668,12 +1012,210 @@
           },
           "city": {
             "description": "City",
+            "nullable": true,
             "type": "string"
           },
           "consents": {
             "description": "Member consents for program",
             "items": {
               "$ref": "#/components/schemas/Consent"
+            },
+            "type": "array"
+          },
+          "country": {
+            "description": "Country",
+            "type": "string"
+          },
+          "custom_data": {
+            "additionalProperties": true,
+            "description": "Sponsor-specific member attributes the sponsor allows API users to read. Present only when there are some.",
+            "type": "object"
+          },
+          "eligibility_end_on": {
+            "description": "Date on which member is no longer eligible for services",
+            "format": "date",
+            "nullable": true,
+            "type": "string"
+          },
+          "eligibility_start_on": {
+            "description": "Date on which member is eligible for services",
+            "format": "date",
+            "nullable": true,
+            "type": "string"
+          },
+          "email": {
+            "deprecated": true,
+            "description": "email address",
+            "format": "email",
+            "nullable": true,
+            "type": "string"
+          },
+          "emails": {
+            "description": "Member emails",
+            "items": {
+              "$ref": "#/components/schemas/MemberEmail"
+            },
+            "type": "array"
+          },
+          "employee_id": {
+            "description": "Employee ID",
+            "nullable": true,
+            "type": "string"
+          },
+          "enrollments": {
+            "description": "Member enrollments in program",
+            "items": {
+              "$ref": "#/components/schemas/Enrollment"
+            },
+            "type": "array"
+          },
+          "first_name": {
+            "description": "First Name",
+            "type": "string"
+          },
+          "gender": {
+            "description": "Gender",
+            "enum": [
+              "female",
+              "male",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          "group_number": {
+            "description": "Insurance group number",
+            "type": "string"
+          },
+          "health_plan_coverage_tier": {
+            "description": "Health Plan coverage tier",
+            "nullable": true,
+            "type": "string"
+          },
+          "health_plan_description": {
+            "description": "Health Plan description (usually insurance carrier name)",
+            "nullable": true,
+            "type": "string"
+          },
+          "health_plan_identifier": {
+            "description": "Health Plan Identifier",
+            "nullable": true,
+            "type": "string"
+          },
+          "health_plan_subscriber_id": {
+            "description": "Subscriber ID with the insurance provider",
+            "type": "string"
+          },
+          "id": {
+            "description": "Datanexus Unique identifier",
+            "type": "string"
+          },
+          "insurance_identifiers": {
+            "description": "Member identifiers and other info for insurance providers",
+            "items": {
+              "$ref": "#/components/schemas/InsuranceIdentifier"
+            },
+            "type": "array"
+          },
+          "last_name": {
+            "description": "Last Name",
+            "type": "string"
+          },
+          "middle_name": {
+            "description": "Middle Name",
+            "type": "string"
+          },
+          "option_id": {
+            "description": "Option ID",
+            "nullable": true,
+            "type": "string"
+          },
+          "parent_sponsor_member_identifier": {
+            "description": "Sponsor member identifier for parent member",
+            "nullable": true,
+            "type": "string"
+          },
+          "payment_card_number": {
+            "description": "Payment card number, when applicable",
+            "type": "string"
+          },
+          "phone_number": {
+            "description": "Phone Number",
+            "nullable": true,
+            "type": "string"
+          },
+          "postal_code": {
+            "description": "Postal Code",
+            "nullable": true,
+            "type": "string"
+          },
+          "relationship_type": {
+            "description": "Member relationship to parent member",
+            "nullable": true,
+            "type": "string"
+          },
+          "sponsor_member_identifier": {
+            "description": "Sponsor member identifier",
+            "nullable": true,
+            "type": "string"
+          },
+          "state": {
+            "description": "State",
+            "nullable": true,
+            "type": "string"
+          },
+          "street_address_1": {
+            "description": "Street Address (line 1)",
+            "nullable": true,
+            "type": "string"
+          },
+          "street_address_2": {
+            "description": "Street Address (line 2)",
+            "nullable": true,
+            "type": "string"
+          },
+          "vendor_data": {
+            "description": "Free-form vendor-specific member attributes. Writes upsert; reads return the array of vendor datasets accessible to the caller.",
+            "oneOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            ]
+          },
+          "work_email": {
+            "deprecated": true,
+            "description": "Employer-provided email address",
+            "format": "email",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "title": "Member",
+        "type": "object"
+      },
+      "MemberAttributes": {
+        "description": "Member attributes accepted by an update request",
+        "properties": {
+          "born_on": {
+            "description": "Date of birth",
+            "format": "date",
+            "type": "string"
+          },
+          "city": {
+            "description": "City",
+            "type": "string"
+          },
+          "consents": {
+            "description": "Member consents for program",
+            "items": {
+              "$ref": "#/components/schemas/ConsentAttributes"
             },
             "type": "array"
           },
@@ -711,7 +1253,7 @@
           "enrollments": {
             "description": "Member enrollments in program",
             "items": {
-              "$ref": "#/components/schemas/Enrollment"
+              "$ref": "#/components/schemas/EnrollmentAttributes"
             },
             "type": "array"
           },
@@ -831,7 +1373,7 @@
             "type": "string"
           }
         },
-        "title": "Member",
+        "title": "MemberAttributes",
         "type": "object"
       },
       "MemberEmail": {
@@ -848,8 +1390,9 @@
             "type": "string"
           },
           "value": {
-            "description": "email address",
+            "description": "email address. A `primary_member` entry is null when the primary member has no work email.",
             "format": "email",
+            "nullable": true,
             "type": "string"
           }
         },
@@ -862,7 +1405,7 @@
           "member": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/Member"
+                "$ref": "#/components/schemas/MemberAttributes"
               }
             ]
           }
@@ -944,6 +1487,78 @@
           }
         },
         "title": "MemberSearchResponse",
+        "type": "object"
+      },
+      "MemberVerifyParams": {
+        "description": "The four fields that identify a member for verification. All are required.",
+        "properties": {
+          "born_on": {
+            "description": "Date of birth",
+            "example": "1976-07-04",
+            "format": "date",
+            "type": "string"
+          },
+          "employee_id": {
+            "description": "Employee ID of primary participant",
+            "example": "abc1234",
+            "minLength": 1,
+            "type": "string"
+          },
+          "first_name": {
+            "description": "First name",
+            "example": "george",
+            "minLength": 1,
+            "type": "string"
+          },
+          "last_name": {
+            "description": "Last name",
+            "example": "washington",
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "first_name",
+          "last_name",
+          "born_on",
+          "employee_id"
+        ],
+        "title": "MemberVerifyParams",
+        "type": "object"
+      },
+      "MemberVerifyResponse": {
+        "description": "The outcome of a member verification",
+        "properties": {
+          "data": {
+            "properties": {
+              "member_id": {
+                "description": "The matched member's ID when the status is `verified` or `ineligible`, otherwise null.",
+                "example": "x7Kq2",
+                "nullable": true,
+                "type": "string"
+              },
+              "status": {
+                "description": "* `verified`: exactly one matching member is eligible for the program today, the member search would return. Other matches that are not eligible are ignored.\n* `ineligible`: one member matches and the program covers them, through their population or an eligibility period, but they are not eligible for it today. Eligible today means an active member record, in a population linked to the program, with an eligibility period that covers today. Most often their eligibility has ended or has not started yet.\n* `not_found`: no member the program covers matches.\n* `multiple_matches`: more than one member matches, and either more than one of them or none of them is eligible today.\n",
+                "enum": [
+                  "verified",
+                  "ineligible",
+                  "not_found",
+                  "multiple_matches"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "status",
+              "member_id"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "MemberVerifyResponse",
         "type": "object"
       },
       "MembersResponse": {
@@ -1140,12 +1755,16 @@
       }
     }
   },
+  "externalDocs": {
+    "description": "FAQ: Is there an API for employer eligibility data?",
+    "url": "https://www.darthealth.com/faq#eligibility-api"
+  },
   "info": {
     "contact": {
       "email": "developers@darthealth.com"
     },
-    "description": "Group Health and Benefits Data. Solved.\n---\nThis is the API for Dart Health's [Data Nexus](https://www.darthealth.com/product). It supports benefits Administrators, Providers, Employers, and Analysts who need to manage real-time information for eligible Program Members.\n\nIn order to authenticate your API requests, please include your API key in the header:\n\n```\nauthorization: apikey YOURAPIKEYHERE\n```\n\n## Client libraries:\n\n### Ruby\n\nA Ruby client is maintained for this API, the [`data_nexus`](https://rubygems.org/gems/data_nexus) gem, with its source at [github.com/DartHealth/datanexus-ruby](https://github.com/DartHealth/datanexus-ruby). It is optional, as every endpoint also works over plain HTTP. It handles:\n  * the `authorization: apikey` header and the base URL;\n  * checking a member search's parameters against the valid combinations before sending, raising `ArgumentError` for any other;\n  * adding `program_id` to enrollment and consent create requests;\n  * paging through `GET /api/members` and `GET /api/programs`;\n  * Error classes per failure, such as `DataNexus::UnprocessableEntityError`, and `DataNexus::RateLimitError` with `retry_after`.\n\nIt installs from RubyGems.org with `gem \"data_nexus\", \">= 0.3\"` in a Gemfile. `client.programs.list` needs version 0.3.0 or later. For example:\n```\nclient = DataNexus::Client.new(api_key: ENV[\"DATANEXUS_API_KEY\"], base_url: ENV[\"DATANEXUS_BASE_URL\"])\nprogram = client.programs.list(name: \"Example Program\").data.first\nclient.programs(program[:id]).search_members(born_on: \"1976-07-04\", employee_id: \"ABC1234\")\n```\n\nIt covers programs (`GET /api/programs`); program members, including search (`/api/programs/{program_id}/members/search`), list, show, update and household; members (`/api/members`: list, show, update); and each member's enrollments (`/api/members/{member_id}/enrollments`) and consents (`/api/members/{member_id}/consents`): create, show, update and delete.\n\n\n## About Dart Health\n\nMore info is available at [https://www.darthealth.com/](https://www.darthealth.com/).\n\n## CHANGELOG (newest entries first):\n\n* 2026-10-07 A failed enrollment create now says why. When the member or program is the problem,\nits `422` body carries an `errors.code` of `no_prevailing_sponsor_member`, `program_not_found` or\n`not_eligible_for_program`, where it previously said only \"Unprocessable Content\". Field and\nrequest validation errors keep their shapes, with no `code`. The status is still `422`.\n* 2026-10-05 The reference describes `data_nexus`, the Ruby client for this API, and the endpoints it covers.\nIts server is now the path `/`, which resolves against the host that serves it.\n* 2026-10-02 List Members (`GET /api/members`) is no longer deprecated.\n* 2026-09-29 List programs now accepts the `first`, `last`, `after` and `before` paging\nparameters and a case-insensitive `name` filter, and returns `has_next_page` and\n`has_previous_page`. Invalid paging input returns 422. Show program now documents its\n`data` wrapper.\n* 2026-09-28 Member search now documents its result cap, that it cannot be paged, and what\n`more_results` means.\n* 2025-05-01 Member emails will now be provided as a list element, `emails`. We have deprecated `email` and\n`work_email` but will provide them until the next major API version update.\n",
-    "title": "DataNexus",
+    "description": "Data Nexus by Dart Health is a REST/JSON API for employer eligibility, enrollment and claims data, built for digital health companies that sell to employers. Each employer keeps sending its eligibility data the way it already does; Data Nexus validates every record and resolves each member's identity, and your product reads the results here instead of maintaining one integration per employer client.\n\nThrough this API you can list a program's eligible members and search them by name, date of birth or employee ID, verify whether a member is eligible, look up a member's household, create and update program enrollments and consents, read and record claims, and subscribe to webhook notifications of member events. More about [Data Nexus](https://www.darthealth.com/product) is at darthealth.com, and its [FAQ](https://www.darthealth.com/faq#eligibility-api) answers common questions about getting employer eligibility data.\n\nIn order to authenticate your API requests, please include your API key in the header:\n\n```\nauthorization: apikey YOURAPIKEYHERE\n```\n\n## Client libraries:\n\n### Ruby\n\nA Ruby client is maintained for this API, the [`data_nexus`](https://rubygems.org/gems/data_nexus) gem, with its source at [github.com/DartHealth/datanexus-ruby](https://github.com/DartHealth/datanexus-ruby). It is optional, as every endpoint also works over plain HTTP. It handles:\n  * the `authorization: apikey` header and the base URL;\n  * checking a member search's parameters against the valid combinations before sending, raising `ArgumentError` for any other;\n  * adding `program_id` to enrollment and consent create requests;\n  * paging through `GET /api/members` and `GET /api/programs`;\n  * Error classes per failure, such as `DataNexus::UnprocessableEntityError`, and `DataNexus::RateLimitError` with `retry_after`.\n\nIt installs from RubyGems.org with `gem \"data_nexus\", \">= 0.3\"` in a Gemfile. `client.programs.list` needs version 0.3.0 or later. For example:\n```\nclient = DataNexus::Client.new(api_key: ENV[\"DATANEXUS_API_KEY\"], base_url: ENV[\"DATANEXUS_BASE_URL\"])\nprogram = client.programs.list(name: \"Example Program\").data.first\nclient.programs(program[:id]).search_members(born_on: \"1976-07-04\", employee_id: \"ABC1234\")\n```\n\nIt covers programs (`GET /api/programs`); program members, including search (`/api/programs/{program_id}/members/search`), list, show, update and household; members (`/api/members`: list, show, update); and each member's enrollments (`/api/members/{member_id}/enrollments`) and consents (`/api/members/{member_id}/consents`): create, show, update and delete.\n\n\n## About Dart Health\n\nMore info is available at [https://www.darthealth.com/](https://www.darthealth.com/).\n\n## CHANGELOG (newest entries first):\n\n* 2026-11-10 New: Verify Program Member (`POST /api/programs/{program_id}/members/verify`).\nGiven a first name, last name, date of birth and employee ID, it says whether they\nidentify a member the program covers and whether that member is eligible today, telling\na covered member who isn't eligible today (`ineligible`) apart from no match\n(`not_found`). Search is unchanged.\n* 2026-10-27 The member endpoints now document the responses they send. List Members and\nList Program Members name their `x-end-cursor` and `x-start-cursor` headers, Show member and\nRepublish member document their `data` wrapper, and member fields the API can send as null\nare marked nullable. Member insurance identifiers document `coverage_start_on`, the name the\nAPI has always sent, not `coverage_begin_on`. Consents and enrollments document their integer\n`id`s, and enrollments their `enrollment_events`. Request bodies are unchanged and now have\ntheir own `MemberAttributes`, `ConsentAttributes` and `EnrollmentAttributes` schemas. A\nmalformed cursor or invalid page size on List Members now returns 422 instead of 500.\n* 2026-10-19 The reference opens with what Data Nexus does and who it is for, and links the\nFAQ's answer on getting employer eligibility data through an API as its external docs. Its\ntitle is now \"Data Nexus\", with a space.\n* 2026-10-07 A failed enrollment create now says why. When the member or program is the problem,\nits `422` body carries an `errors.code` of `no_prevailing_sponsor_member`, `program_not_found` or\n`not_eligible_for_program`, where it previously said only \"Unprocessable Content\". Field and\nrequest validation errors keep their shapes, with no `code`. The status is still `422`.\n* 2026-10-05 The reference describes `data_nexus`, the Ruby client for this API, and the endpoints it covers.\nIts server is now the path `/`, which resolves against the host that serves it.\n* 2026-10-02 List Members (`GET /api/members`) is no longer deprecated.\n* 2026-09-29 List programs now accepts the `first`, `last`, `after` and `before` paging\nparameters and a case-insensitive `name` filter, and returns `has_next_page` and\n`has_previous_page`. Invalid paging input returns 422. Show program now documents its\n`data` wrapper.\n* 2026-09-28 Member search now documents its result cap, that it cannot be paged, and what\n`more_results` means.\n* 2025-05-01 Member emails will now be provided as a list element, `emails`. We have deprecated `email` and\n`work_email` but will provide them until the next major API version update.\n",
+    "title": "Data Nexus",
     "version": "1.0"
   },
   "openapi": "3.0.0",
@@ -1441,11 +2060,24 @@
             },
             "description": "Members response",
             "headers": {
-              "X-Cursor-Next": {
-                "description": "cursor for next page of records",
+              "x-end-cursor": {
+                "description": "Cursor of the last member on the page",
+                "schema": {
+                  "type": "string"
+                },
+                "style": "simple"
+              },
+              "x-start-cursor": {
+                "description": "Cursor of the first member on the page",
+                "schema": {
+                  "type": "string"
+                },
                 "style": "simple"
               }
             }
+          },
+          "422": {
+            "$ref": "#/components/responses/unprocessable_entity"
           }
         },
         "summary": "List Members",
@@ -1476,7 +2108,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Member"
+                  "$ref": "#/components/schemas/MemberResponse"
                 }
               }
             },
@@ -1605,7 +2237,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Member"
+                  "$ref": "#/components/schemas/MemberResponse"
                 }
               }
             },
@@ -2386,8 +3018,18 @@
             },
             "description": "Program Members response",
             "headers": {
-              "X-Cursor-Next": {
-                "description": "cursor for next page of records",
+              "x-end-cursor": {
+                "description": "Cursor of the last member on the page",
+                "schema": {
+                  "type": "string"
+                },
+                "style": "simple"
+              },
+              "x-start-cursor": {
+                "description": "Cursor of the first member on the page",
+                "schema": {
+                  "type": "string"
+                },
                 "style": "simple"
               }
             }
@@ -2488,6 +3130,55 @@
         ]
       }
     },
+    "/api/programs/{program_id}/members/verify": {
+      "post": {
+        "callbacks": {},
+        "description": "Says whether a member's first name, last name, date of birth and employee ID identify one member the program covers, and whether that member is eligible for it today. Unlike search, it tells a covered member who isn't eligible today (`ineligible`) apart from details that match no one (`not_found`). It returns the member's ID and nothing else about them.\n\nEligible today means what search requires: an active member record, in a population linked to the program, with an eligibility period for it that covers today. When the details match exactly one covered member and they miss any of these, the result is `ineligible` (two or more such matches give `multiple_matches`). Most often their eligibility has ended or hasn't started yet, but it also applies to a member left off the sponsor's latest roster, and to one with an eligibility period but no population linked to the program.\n\nNames match as they do in search: case, accents and punctuation are ignored. A member loaded in the last 10 minutes may not match by name yet.\n\nThe program covers a member who is in one of its populations or who has ever had an eligibility period for it, so a member whose eligibility has ended stays `ineligible`.\n\nThe show, update and household endpoints only return members eligible for the program today, so they answer 404 for the ID of an `ineligible` member.\n",
+        "operationId": "DatanexusApi.ProgramMemberController.verify",
+        "parameters": [
+          {
+            "description": "Program ID",
+            "in": "path",
+            "name": "program_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MemberVerifyParams"
+              }
+            }
+          },
+          "description": "Member verify params",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberVerifyResponse"
+                }
+              }
+            },
+            "description": "Program member verify response"
+          },
+          "422": {
+            "$ref": "#/components/responses/unprocessable_entity"
+          }
+        },
+        "summary": "Verify Program Member",
+        "tags": [
+          "members"
+        ]
+      }
+    },
     "/api/programs/{program_id}/members/{id}": {
       "get": {
         "callbacks": {},
@@ -2519,7 +3210,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Member"
+                  "$ref": "#/components/schemas/MemberResponse"
                 }
               }
             },
@@ -2647,7 +3338,7 @@
     "/api/programs/{program_id}/members/{id}/household": {
       "get": {
         "callbacks": {},
-        "description": "List household members by member ID",
+        "description": "Lists the members of the given member's household who are eligible for the program,\nincluding the given member when they are. A household is the members of the given\nmember's sponsor who share their `parent_sponsor_member_identifier`. A member without\none takes their own `sponsor_member_identifier` as their household's identifier, so they\nhead the household of any members who point at them. Each member is rendered as the\nshow endpoint renders them. The\nsponsor-level fields (identifiers, `employee_id`, `relationship_type`, health plan\ndescription and coverage tier, `custom_data` and eligibility dates) come from their\nrecord with this sponsor. `household_primary` says whether they are the household's\nprimary.\n",
         "operationId": "DatanexusApi.ProgramMemberController.household",
         "parameters": [
           {
