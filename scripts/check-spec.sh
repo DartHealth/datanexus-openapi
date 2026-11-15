@@ -115,7 +115,8 @@ for f in ${files[@]+"${files[@]}"}; do
   fi
 
   # Rule 3: datanexus.darthealth.com is a client's production instance. Every
-  # mention, with or without a scheme, links only its public reference pages.
+  # mention, with or without a scheme, links only its root or its spec. Not
+  # /swaggerui: its Try it out sends a reader's key and requests to that client.
   # The path isn't printed; it may name a record. awk prints what follows each
   # mention of the host, up to the next mention, whitespace or <: a browser
   # autolinks that far, so .. is checked over it, while the allowlist sees only
@@ -127,7 +128,7 @@ for f in ${files[@]+"${files[@]}"}; do
     case "${piece#"${piece%%[?#]*}"}" in */* | *%2[Ff]* | *\\* | *%5[Cc]*) path=query ;; esac
     case "$after" in *..* | *%2[Ee]*) path=traversal ;; esac
     case "$path" in
-      "" | / | /swaggerui | /swaggerui/ | /api/openapi) ;;
+      "" | / | /api/openapi) ;;
       *) fail "$rel" 3 "path not allowed on datanexus.darthealth.com (not printed)" ;;
     esac
   done < <(awk -v h=datanexus.darthealth.com '{

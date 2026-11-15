@@ -93,10 +93,8 @@ for url in 'https://www.darthealth.com?utm=x' 'https://www.darthealth.com#faq' '
   'https://www.darthealth.com.' 'https://www.darthealth.com, then' 'https://www.darthealth.com;' 'https://www.darthealth.com:' \
   'https://datanexus.darthealth.com?ref=x' 'https://datanexus.darthealth.com/?ref=x' 'https://datanexus.darthealth.com#top' \
   'https://customer.darthealth.com.example/' 'customer.darthealth.com.au' \
-  'https://datanexus.darthealth.com/swaggerui' 'https://datanexus.darthealth.com/swaggerui?ref=x' 'https://datanexus.darthealth.com/swaggerui#top' \
-  'https://datanexus.darthealth.com/swaggerui/' 'https://datanexus.darthealth.com/swaggerui/?ref=x' 'https://datanexus.darthealth.com/swaggerui/#top' \
   'https://datanexus.darthealth.com/api/openapi' 'https://datanexus.darthealth.com/api/openapi?ref=x' 'https://datanexus.darthealth.com/api/openapi#top' \
-  'https://datanexus.darthealth.com/swaggerui, then try it.' 'https://datanexus.darthealth.com/swaggerui.' \
+  'https://datanexus.darthealth.com/api/openapi, then fetch it.' 'https://datanexus.darthealth.com/api/openapi.' \
   'Email hello@darthealth.com' 'mailto:hello@darthealth.com'; do
   printf 'See %s\n' "$url" > "$root/docs/query.md"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then

@@ -19,7 +19,7 @@ JSON for:
 - Programs
 - Webhook subscriptions, which push member and enrollment changes so you don't have to poll
 
-The full contract is in [`openapi.json`](openapi.json). [Swagger UI](https://datanexus.darthealth.com/swaggerui) renders the same spec interactively.
+The full contract is in [`openapi.json`](openapi.json).
 
 ## How do I authenticate?
 
