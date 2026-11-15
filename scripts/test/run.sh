@@ -90,6 +90,7 @@ root="$work/allowed-query"
 mkdir -p "$root"
 cp -R "$fixtures/pass/." "$root/"
 for url in 'https://www.darthealth.com?utm=x' 'https://www.darthealth.com#faq' 'https://www.darthealth.com?ref=a@b' \
+  'https://www.darthealth.com.' 'https://www.darthealth.com, then' 'https://www.darthealth.com;' 'https://www.darthealth.com:' \
   'https://datanexus.darthealth.com?ref=x' 'https://datanexus.darthealth.com/?ref=x' 'https://datanexus.darthealth.com#top' \
   'https://customer.darthealth.com.example/' 'customer.darthealth.com.au' \
   'https://datanexus.darthealth.com/swaggerui' 'https://datanexus.darthealth.com/swaggerui?ref=x' 'https://datanexus.darthealth.com/swaggerui#top' \

@@ -53,6 +53,7 @@ host_allowed() {
 check_url_host() {
   local rel="$1" rest="$2" host port
   host="${rest%%[/?#\\]*}"  # the authority ends at the path, query or fragment; browsers read \ as /
+  host="$(printf '%s' "$host" | sed -E 's/[.,;:!]+$//')"  # a bare host can end a sentence
   case "$host" in
     *@*) fail "$rel" 3 "a URL carries credentials (not printed)"; return ;;
   esac
