@@ -23,7 +23,7 @@ expected_servers='[{"url":"https://{instance}.darthealth.com","description":"You
 if ! jq -e '(.openapi | type == "string" and startswith("3.")) and (.paths | type == "object" and length > 0)' "$spec" >/dev/null 2>&1; then
   fail "openapi.json" 1 "not valid JSON, .openapi is not 3.x, or there are no paths"
 else
-  # Rule 2: servers is exactly the published value, in order
+  # Rule 2: servers is exactly the published value
   if ! jq -e --argjson want "$expected_servers" '.servers == $want' "$spec" >/dev/null; then
     fail "openapi.json" 2 ".servers is not the published servers value"
   fi
