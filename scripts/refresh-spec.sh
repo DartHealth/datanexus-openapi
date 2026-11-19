@@ -10,7 +10,7 @@ dir="${SPEC_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 here="$(cd "$(dirname "$0")" && pwd)"
 servers='[{"url":"https://datanexus.darthealth.com"},{"url":"https://{instance}.darthealth.com","description":"Your Data Nexus API host is issued at provisioning.","variables":{"instance":{"default":"datanexus"}}}]'
 
-tmp="$(mktemp -d)"
+tmp="$(mktemp -d "${TMPDIR:-/tmp}/refresh-spec.XXXXXX")"  # a bare mktemp -d ignores a sandbox's TMPDIR
 staged=''
 trap 'rm -rf "$tmp"; if [ -n "$staged" ]; then rm -f -- "$staged"; fi' EXIT
 
