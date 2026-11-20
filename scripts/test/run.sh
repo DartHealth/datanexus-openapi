@@ -157,6 +157,23 @@ for src in "file://$work/missing.json" "file://$work/html.json" "file://$work/le
   fi
 done
 
+# refresh-spec.sh: a missing README.md reaches check-spec's rule 1 message and
+# leaves openapi.json untouched.
+nodoc="$work/refresh-no-readme"
+mkdir -p "$nodoc"
+cp -R "$fixtures/pass/." "$nodoc/"
+rm "$nodoc/README.md"
+cp "$nodoc/openapi.json" "$work/before-no-readme.json"
+if out="$(SPEC_URL="file://$raw" SPEC_DIR="$nodoc" "$scripts/refresh-spec.sh" 2>&1)"; then
+  bad "refresh succeeded without README.md"
+elif ! printf '%s\n' "$out" | grep -q "required file is missing"; then
+  bad "refresh without README.md did not report the missing file: $out"
+elif ! cmp -s "$work/before-no-readme.json" "$nodoc/openapi.json"; then
+  bad "refresh changed openapi.json after failing without README.md"
+else
+  echo "ok: refresh reports a missing README.md"
+fi
+
 if [ "$errors" -gt 0 ]; then
   echo "$errors test(s) failed"
   exit 1
