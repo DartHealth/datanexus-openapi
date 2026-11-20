@@ -59,11 +59,12 @@ done
 # A URL's credentials never appear in the failure output.
 # The script lowercases hosts, so match case-insensitively.
 for name in rule3-credentials rule3-credentials-query rule3-credentials-fragment rule3-credentials-subdomain-password rule3-port-token rule3-nested-url-encoded-credentials \
-  rule3-credentials-protocol-relative rule3-credentials-no-scheme rule3-credentials-no-scheme-subdomain-password; do
+  rule3-credentials-protocol-relative rule3-credentials-no-scheme rule3-credentials-no-scheme-subdomain-password \
+  rule3-credentials-password-slash; do
   root="$work/$name"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
     bad "$name: passed but should fail"
-  elif printf '%s\n' "$out" | grep -qiE 'deploy|s3cretTok'; then
+  elif printf '%s\n' "$out" | grep -qiE 'deploy|s3cret|tok\.darthealth'; then
     bad "$name: output prints the URL's userinfo: $out"
   else
     echo "ok: $name credentials are not printed"
@@ -75,7 +76,8 @@ for name in rule3-admin-path rule3-prod-path-dotdot rule3-prod-path-encoded-dotd
   rule3-prod-path-comma-dotdot rule3-prod-path-protocol-relative rule3-prod-path-no-scheme rule3-prod-path-api \
   rule3-prod-path-backslash rule3-prod-path-paren-dotdot rule3-prod-path-quote-dotdot rule3-prod-path-query-path \
   rule3-prod-path-adjacent-link rule3-prod-path-comma-link rule3-prod-host-encoded-path rule3-prod-host-nested-double-encoded \
-  rule3-prod-path-paren-encoded-dotdot rule3-prod-path-query-encoded-path rule3-prod-path-query-backslash; do
+  rule3-prod-path-paren-encoded-dotdot rule3-prod-path-query-encoded-path rule3-prod-path-query-backslash \
+  rule3-mailto-client-host rule3-instance-admin-path; do
   out="$("$scripts/check-spec.sh" "$work/$name" 2>&1)"
   if printf '%s\n' "$out" | grep -qE 'sponsor_members|admin/users|api/members'; then
     bad "$name: output prints the path: $out"
@@ -95,7 +97,10 @@ for url in 'https://www.darthealth.com?utm=x' 'https://www.darthealth.com#faq' '
   'https://customer.darthealth.com.example/' 'customer.darthealth.com.au' \
   'https://datanexus.darthealth.com/api/openapi' 'https://datanexus.darthealth.com/api/openapi?ref=x' 'https://datanexus.darthealth.com/api/openapi#top' \
   'https://datanexus.darthealth.com/api/openapi, then fetch it.' 'https://datanexus.darthealth.com/api/openapi.' \
-  'Email hello@darthealth.com' 'mailto:hello@darthealth.com'; do
+  'Email hello@darthealth.com' 'mailto:hello@darthealth.com' \
+  'Fetch datanexus.darthealth.com... then parse.' '[spec](https://datanexus.darthealth.com/api/openapi)...' \
+  'https://datanexus.darthealth.com/api/openapi/' 'https://datanexus.darthealth.com:443/api/openapi' \
+  'x = 1; //TODO fix' 'acme.darthealth.com-old.org'; do
   printf 'See %s\n' "$url" > "$root/docs/query.md"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
     echo "ok: allowed $url"

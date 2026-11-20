@@ -40,45 +40,6 @@ if [ -d "$root/docs" ]; then
   while IFS= read -r f; do files+=("$f"); done < <(find "$root/docs" -type f | sort)
 fi
 
-host_allowed() {
-  case "$1" in
-    darthealth.com | www.darthealth.com | datanexus.darthealth.com | trust.darthealth.com) return 0 ;;
-    "{instance}.darthealth.com" | github.com | raw.githubusercontent.com | rubygems.org) return 0 ;;
-    *.test | *.example | *.invalid | example.com | example.org | example.net) return 0 ;;
-  esac
-  return 1
-}
-
-# Rule 3 for one URL, given without its scheme:// or //. Never prints userinfo.
-check_url_host() {
-  local rel="$1" rest="$2" host port
-  host="${rest%%[/?#\\]*}"  # the authority ends at the path, query or fragment; browsers read \ as /
-  host="$(printf '%s' "$host" | sed -E 's/[.,;:!]+$//')"  # a bare host can end a sentence
-  case "$host" in
-    *@*) fail "$rel" 3 "a URL carries credentials (not printed)"; return ;;
-  esac
-  case "$host" in
-    *:*)
-      port="${host#*:}"
-      host="${host%%:*}"
-      case "$port" in
-        *[!0-9]*) fail "$rel" 3 "a URL's port isn't a number (not printed)"; return ;;
-      esac
-      ;;
-  esac
-  host="$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')"
-  host_allowed "$host" && return
-  # %2F, | and the like don't end the cut above, so what's left may hold a path
-  case "$host" in
-    *[!a-z0-9.-]*) fail "$rel" 3 "URL host not allowed (not printed: not a plain hostname)"; return ;;
-  esac
-  # A ? or # inside userinfo cuts the authority short, so what's left may be a secret
-  case "${rest%%/*}" in
-    *@*) fail "$rel" 3 "URL host not allowed (not printed: it may carry credentials)" ;;
-    *) fail "$rel" 3 "URL host not allowed: $host" ;;
-  esac
-}
-
 email_allowed() {
   case "$1" in
     developers@darthealth.com | hello@darthealth.com) return 0 ;;
@@ -96,61 +57,11 @@ host_reserved() {
 for f in ${files[@]+"${files[@]}"}; do
   rel="${f#"$root"/}"
 
-  # Rule 3: every URL's host, whatever its scheme, is on the allowlist,
-  # including a protocol-relative //host and a URL nested in another URL's
-  # query, percent-encoded or not
-  while IFS= read -r url; do
-    while [ -n "$url" ]; do
-      rest="${url#*//}"
-      check_url_host "$rel" "$rest"
-      url="$(printf '%s' "$rest" | sed -e 's/%3[Aa]/:/g' -e 's#%2[Ff]#/#g' -e 's/%40/@/g' \
-        | grep -oiE '[a-z][a-z0-9+.-]*://.*' | head -n 1)"
-    done
-  done < <(grep -oiE '([a-z][a-z0-9+.-]*:|(^|[^a-z0-9+./:-]))//[^][[:space:]"'"'"'<>()`,]+' "$f" || true)
-
-  # Rule 3: user:password@host written without a scheme. mailto: names an address.
-  if sed -E 's/[Mm][Aa][Ii][Ll][Tt][Oo]://g' "$f" \
-    | grep -qE '(^|[^/A-Za-z0-9._~%+-])[A-Za-z0-9._~%+-]+:[^/?#@[:space:]]*@'; then
-    fail "$rel" 3 "userinfo without a scheme (not printed)"
+  # Rule 3: every URL and darthealth.com host is allowed (scripts/check-urls.py)
+  urls="$(python3 -I "$(dirname "$0")/check-urls.py" "$f")" || fail "$rel" 3 "check-urls.py failed"
+  if [ -n "$urls" ]; then
+    while IFS= read -r msg; do fail "$rel" 3 "$msg"; done <<< "$urls"
   fi
-
-  # Rule 3: datanexus.darthealth.com is a client's production instance. Every
-  # mention, with or without a scheme, links only its root or its spec. Not
-  # /swaggerui: its Try it out sends a reader's key and requests to that client.
-  # The path isn't printed; it may name a record. awk prints what follows each
-  # mention of the host, up to the next mention, whitespace or <: a browser
-  # autolinks that far, so .. is checked over it, while the allowlist sees only
-  # the piece before a Markdown/HTML delimiter.
-  while IFS= read -r after; do
-    piece="$(printf '%s' "$after" | sed 's/[])>"'"'"'`].*//')"
-    path="$(printf '%s' "${piece%%[?#]*}" | sed -E 's/[.,;:!]+$//')"
-    # A query or fragment can carry a record path too (?url=/admin/...); \ resolves as /
-    case "${piece#"${piece%%[?#]*}"}" in */* | *%2[Ff]* | *\\* | *%5[Cc]*) path=query ;; esac
-    case "$after" in *..* | *%2[Ee]*) path=traversal ;; esac
-    case "$path" in
-      "" | / | /api/openapi) ;;
-      *) fail "$rel" 3 "path not allowed on datanexus.darthealth.com (not printed)" ;;
-    esac
-  done < <(awk -v h=datanexus.darthealth.com '{
-    line = $0; low = tolower(line)
-    while ((i = index(low, h)) > 0) {
-      line = substr(line, i + length(h)); low = substr(low, i + length(h))
-      j = index(low, h); span = j ? substr(line, 1, j - 1) : line
-      sub(/[< \t\r\f\v].*/, "", span)
-      print span
-    }
-  }' "$f")
-
-  # Rule 3, without a scheme: every darthealth.com subdomain named is allowed.
-  # Userinfo is dropped first so a password is never printed as a host; only
-  # userinfo that can't hold a / ? # or @, so a query can't hide a host, and a
-  # schemeless user: token paired with the userinfo check above. Each match is
-  # a whole hostname, so a longer domain isn't a darthealth.com one.
-  while IFS= read -r name; do
-    case "$name" in *.darthealth.com) ;; *) continue ;; esac
-    host_allowed "$name" || fail "$rel" 3 "host not allowed: $name"
-  done < <(sed -E 's,(//|(^|[^/A-Za-z0-9._~%+-])[A-Za-z0-9._~%+-]+:)[^/?#@[:space:]]*@,\1,g' "$f" \
-    | grep -oiE '([a-z0-9-]+\.)+darthealth\.com(\.[a-z0-9-]+)*' | tr '[:upper:]' '[:lower:]' | sort -u)
 
   # Rule 4: localhost or an IPv4 address (a sentence-ending period still counts)
   if grep -qiE 'localhost|(^|[^0-9.])([0-9]{1,3}\.){3}[0-9]{1,3}\.?([^0-9.]|$)' "$f"; then
