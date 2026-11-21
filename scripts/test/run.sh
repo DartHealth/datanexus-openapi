@@ -60,7 +60,7 @@ done
 # The script lowercases hosts, so match case-insensitively.
 for name in rule3-credentials rule3-credentials-query rule3-credentials-fragment rule3-credentials-subdomain-password rule3-port-token rule3-nested-url-encoded-credentials \
   rule3-credentials-protocol-relative rule3-credentials-no-scheme rule3-credentials-no-scheme-subdomain-password \
-  rule3-credentials-password-slash; do
+  rule3-credentials-password-slash rule3-credentials-encoded-slash rule3-nested-url-encoded-slash-credentials; do
   root="$work/$name"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
     bad "$name: passed but should fail"
@@ -77,7 +77,7 @@ for name in rule3-admin-path rule3-prod-path-dotdot rule3-prod-path-encoded-dotd
   rule3-prod-path-backslash rule3-prod-path-paren-dotdot rule3-prod-path-quote-dotdot rule3-prod-path-query-path \
   rule3-prod-path-adjacent-link rule3-prod-path-comma-link rule3-prod-host-encoded-path rule3-prod-host-nested-double-encoded \
   rule3-prod-path-paren-encoded-dotdot rule3-prod-path-query-encoded-path rule3-prod-path-query-backslash \
-  rule3-mailto-client-host rule3-instance-admin-path; do
+  rule3-mailto-client-host rule3-instance-admin-path rule3-prod-path-after-paren; do
   out="$("$scripts/check-spec.sh" "$work/$name" 2>&1)"
   if printf '%s\n' "$out" | grep -qE 'sponsor_members|admin/users|api/members'; then
     bad "$name: output prints the path: $out"
