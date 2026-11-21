@@ -100,12 +100,35 @@ for url in 'https://www.darthealth.com?utm=x' 'https://www.darthealth.com#faq' '
   'Email hello@darthealth.com' 'mailto:hello@darthealth.com' \
   'Fetch datanexus.darthealth.com... then parse.' '[spec](https://datanexus.darthealth.com/api/openapi)...' \
   'https://datanexus.darthealth.com/api/openapi/' 'https://datanexus.darthealth.com:443/api/openapi' \
-  'x = 1; //TODO fix' 'acme.darthealth.com-old.org'; do
+  'x = 1; //TODO fix' 'acme.darthealth.com-old.org' \
+  "[spec](https://datanexus.darthealth.com/api/openapi)'s" '[a](https://datanexus.darthealth.com/api/openapi)[b](https://github.com/x)' \
+  '[a](https://datanexus.darthealth.com/api/openapi) and [b](//github.com/x)' '(https://datanexus.darthealth.com/api/openapi), then'; do
   printf 'See %s\n' "$url" > "$root/docs/query.md"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
     echo "ok: allowed $url"
   else
     bad "allowed $url failed: $out"
+  fi
+done
+
+# A path past a link closer on the production host, or a client host after a
+# literal %, fails on rule 3, and the path is never printed.
+for text in 'https://datanexus.darthealth.com/api/openapi)x/admin/sponsor_members/1' \
+  "https://datanexus.darthealth.com/api/openapi)'s/admin/sponsor_members/1" \
+  'https://datanexus.darthealth.com/api/openapi)./admin/sponsor_members/1' \
+  'https://datanexus.darthealth.com/api/openapi)//admin/sponsor_members/1' \
+  'https://datanexus.darthealth.com/api/openapi)?u=/admin/sponsor_members/1' \
+  'https://datanexus.darthealth.com/api/openapi)#/admin/sponsor_members/1' \
+  '%client.darthealth.com' 'Uptime 100%zz-acme.darthealth.com' '50%-acme.darthealth.com'; do
+  printf 'See %s\n' "$text" > "$root/docs/query.md"
+  if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
+    bad "$text passed but should fail on rule 3"
+  elif ! printf '%s\n' "$out" | grep -q ": rule 3:"; then
+    bad "$text failed, but not on rule 3: $out"
+  elif printf '%s\n' "$out" | grep -q 'sponsor_members'; then
+    bad "$text: output prints the path: $out"
+  else
+    echo "ok: fails $text"
   fi
 done
 out="$("$scripts/check-spec.sh" "$work/rule3-host-query" 2>&1)"

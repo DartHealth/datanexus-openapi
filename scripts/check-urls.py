@@ -28,7 +28,7 @@ PROD_PATHS = {"", "/", "/api/openapi", "/api/openapi/"}
 # A URL starts at scheme:// or at a protocol-relative //host.with.a.dot
 URL = re.compile(r"[a-z][a-z0-9+.-]*:/{2,}|(?<![a-z0-9+./:-])/{2,}(?=[^/?#\s]*\.[\w%{}-])", re.I)
 # A darthealth.com subdomain, as a whole hostname: .com.au is another domain
-NAME = re.compile(r"(?<![a-z0-9{}%-])(?:[a-z0-9{}-]+\.)+darthealth\.com(?![a-z0-9-]|\.[a-z0-9-])", re.I)
+NAME = re.compile(r"(?<![a-z0-9{}-])(?:[a-z0-9{}-]+\.)+darthealth\.com(?![a-z0-9-]|\.[a-z0-9-])", re.I)
 USERINFO = re.compile(r"(^|[^/A-Za-z0-9._~%+-])[A-Za-z0-9._~%+-]+:[^/?#@\s]*@")
 # Anything userinfo-shaped; a line with it has no host printed, as a host may be a password
 SECRET = re.compile(r"(:|//)\S*@")
@@ -66,10 +66,11 @@ def check(span, n, secret):
             return f"URL host not allowed at line {n} (not printed)"
         return f"URL host not allowed: {host}"
     # The path may name a record; the query can carry one too (?url=/admin/...).
-    # A browser autolinks past a mid-span ) or ', so a path right after one, or
-    # a .. anywhere, could reach past the spec
+    # A browser autolinks past a mid-span ) or ', so a path, query or fragment
+    # after one (up to the next link or URL), or a .. anywhere, reaches past the spec
+    past = re.split(r"\[|" + URL.pattern, after, maxsplit=1, flags=re.I)[0]
     if host in PROD and (decode(u.path) not in PROD_PATHS or re.search("[/:]", decode(u.query + u.fragment))
-                         or re.match(r"[)\]\"'`>]+/(?!/)", after) or DOT_SEGMENT.search(wide)):
+                         or re.search("[/?#]", past) or DOT_SEGMENT.search(wide)):
         return f"path not allowed on {host} at line {n} (not printed)"
     return None
 
@@ -88,7 +89,10 @@ def main(path):
             if any(USERINFO.search(t) for t in layers):
                 failures[f"userinfo without a scheme at line {n} (not printed)"] = None
             spans = [t[m.start():] for t in layers for m in URL.finditer(t)]
-            spans += ["//" + t[m.start():] for t in layers for m in NAME.finditer(t)]
+            # A name right after a % is an escape's tail (%7Binstance%7D) until the
+            # last layer, where any % left is literal
+            spans += ["//" + t[m.start():] for i, t in enumerate(layers) for m in NAME.finditer(t)
+                      if i == len(layers) - 1 or t[m.start() - 1:m.start()] != "%"]
             for span in spans:
                 failure = check(re.split(r"[\s<]", span, maxsplit=1)[0], n, secret)
                 if failure:
