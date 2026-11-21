@@ -49,12 +49,26 @@ def split(url):
     return u, decode(u.hostname or "").lower()
 
 
+def trim(bare):
+    """A bare autolink drops trailing punctuation, then an unbalanced ) or ]."""
+    while True:
+        s = bare.rstrip(PUNCT)
+        for close, open_ in ((")", "("), ("]", "[")):
+            if s.endswith(close) and s.count(close) > s.count(open_):
+                s = s[:-1]
+        if s == bare:
+            return bare
+        bare = s
+
+
 def extent(t, i):
     """The URL starting at t[i], ended by what opened it, and for a Markdown
-    link destination the text glued after its closing )."""
+    link destination or an HTML attribute the text glued after its end."""
     before, rest = t[:i], t[i:]
     if before.endswith(('="', "='")):  # an HTML attribute ends at its quote; markup follows
-        return rest.split(before[-1], 1)[0], ""
+        url, _, after = rest.partition(before[-1])
+        glued = re.split(r"[\s>]", after, maxsplit=1)[0]
+        return url, "" if glued == "/" else glued  # "/> closes the tag
     bare = re.split(r"[\s<]", rest, maxsplit=1)[0]  # a GFM bare autolink runs to whitespace or <
     if before.endswith("<"):
         return bare.split(">", 1)[0], ""
@@ -63,7 +77,7 @@ def extent(t, i):
         for j, c in enumerate(bare):
             depth += {"(": 1, ")": -1}.get(c, 0)
             if not depth:
-                return bare[:j], re.split(r"\[", bare[j + 1:], maxsplit=1)[0]
+                return bare[:j], bare[j + 1:]  # glued text runs on: a [ there may open no link
     if before.count("[") > before.count("]") and "](" in bare:  # link text ends at its ](
         cut = bare.split("](", 1)[0]
         # GFM autolinks past a [ that opens no link text, and no check of the [
@@ -74,14 +88,7 @@ def extent(t, i):
             prod = True
         if not prod:
             bare = cut
-    while True:  # a bare autolink drops trailing punctuation, then an unbalanced ) or ]
-        s = bare.rstrip(PUNCT)
-        for close, open_ in ((")", "("), ("]", "[")):
-            if s.endswith(close) and s.count(close) > s.count(open_):
-                s = s[:-1]
-        if s == bare:
-            return bare, ""
-        bare = s
+    return trim(bare), ""
 
 
 def check(url, glued, n, secret):
@@ -102,8 +109,8 @@ def check(url, glued, n, secret):
         return f"URL host not allowed: {host}"
     # The path may name a record; the query can carry one too (?url=/admin/...),
     # a .. can climb out of the spec, and text glued after a Markdown link's )
-    # can carry a record path as well
-    glued = decode(glued).rstrip(PUNCT)
+    # or an attribute's quote can carry a record path as well
+    glued = trim(decode(glued))
     if host in PROD and (decode(u.path) not in PROD_PATHS or re.search("[/:]", decode(u.query + u.fragment))
                          or DOT_SEGMENT.search(decode(url)) or (glued != "#" and re.search("[/?#]", glued))):
         return f"path not allowed on {host} at line {n} (not printed)"

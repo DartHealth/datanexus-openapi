@@ -101,11 +101,11 @@ for url in 'https://www.darthealth.com?utm=x' 'https://www.darthealth.com#faq' '
   'Fetch datanexus.darthealth.com... then parse.' '[spec](https://datanexus.darthealth.com/api/openapi)...' \
   'https://datanexus.darthealth.com/api/openapi/' 'https://datanexus.darthealth.com:443/api/openapi' \
   'x = 1; //TODO fix' 'acme.darthealth.com-old.org' \
-  "[spec](https://datanexus.darthealth.com/api/openapi)'s" '[a](https://datanexus.darthealth.com/api/openapi)[b](https://github.com/x)' \
+  "[spec](https://datanexus.darthealth.com/api/openapi)'s" '[a](https://datanexus.darthealth.com/api/openapi) and [b](https://github.com/x)' \
   '[a](https://datanexus.darthealth.com/api/openapi) and [b](//github.com/x)' '(https://datanexus.darthealth.com/api/openapi), then' \
   'Have you read [the spec](https://datanexus.darthealth.com/api/openapi)?' '(see https://datanexus.darthealth.com/api/openapi)?' \
   '[the spec](https://datanexus.darthealth.com/api/openapi)?!' '[the spec](https://datanexus.darthealth.com/api/openapi)#' \
-  '<a href="https://datanexus.darthealth.com/api/openapi">api/openapi</a>' \
+  '<a href="https://datanexus.darthealth.com/api/openapi">api/openapi</a>' '<img src="https://datanexus.darthealth.com/api/openapi"/>' \
   '[trust.darthealth.com](https://trust.darthealth.com/)' '[www.darthealth.com](https://www.darthealth.com/)' \
   '[datanexus.darthealth.com](https://datanexus.darthealth.com/api/openapi)' '[https://github.com](https://github.com)' \
   '[https://www.darthealth.com](https://www.darthealth.com/)' \
@@ -124,6 +124,7 @@ done
 # A path past a link closer on the production host, or a client host after a
 # literal %, fails on rule 3, and the path is never printed.
 # Accepted cost: a production URL with a scheme fails as its own link text.
+# Accepted cost: a link glued with no space onto a production destination's ) fails.
 for text in 'https://datanexus.darthealth.com/api/openapi)x/admin/sponsor_members/1' \
   "https://datanexus.darthealth.com/api/openapi)'s/admin/sponsor_members/1" \
   'https://datanexus.darthealth.com/api/openapi)./admin/sponsor_members/1' \
@@ -155,6 +156,15 @@ for text in 'https://datanexus.darthealth.com/api/openapi)x/admin/sponsor_member
   '[https://datanexus.darthealth.com/api/openapi](https://datanexus.darthealth.com/api/openapi)' \
   '**[https://datanexus.darthealth.com/api/openapi](https://datanexus.darthealth.com/api/openapi)**' \
   '([https://datanexus.darthealth.com/api/openapi](https://datanexus.darthealth.com/api/openapi)).' \
+  'x](https://datanexus.darthealth.com/api/openapi)[/admin/sponsor_members/1' \
+  '\[a](https://datanexus.darthealth.com/api/openapi)[/admin/sponsor_members/1' \
+  'x](https://datanexus.darthealth.com/api/openapi)x[/admin/sponsor_members/1' \
+  'x](https://datanexus.darthealth.com/api/openapi)[b](/admin/sponsor_members/1' \
+  '`[a`](https://datanexus.darthealth.com/api/openapi)[/admin/sponsor_members/1' \
+  'x](//datanexus.darthealth.com/api/openapi)[/admin/sponsor_members/1' \
+  'x](https://%7Binstance%7D.darthealth.com/api/openapi)[/admin/sponsor_members/1' \
+  'x="https://datanexus.darthealth.com/api/openapi"/admin/sponsor_members/1' \
+  '[a](https://datanexus.darthealth.com/api/openapi)[b](https://github.com/x)' \
   '%client.darthealth.com' 'Uptime 100%zz-acme.darthealth.com' '50%-acme.darthealth.com'; do
   printf 'See %s\n' "$text" > "$root/docs/query.md"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
