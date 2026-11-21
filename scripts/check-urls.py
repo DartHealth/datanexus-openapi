@@ -34,6 +34,11 @@ USERINFO = re.compile(r"(^|[^/A-Za-z0-9._~%+-])[A-Za-z0-9._~%+-]+:[^/?#@\s]*@")
 SECRET = re.compile(r"(:|//)\S*@")
 PUNCT = "?!.,:;*_~'\"`"  # trailing punctuation a bare autolink drops
 DOT_SEGMENT = re.compile(r"(^|/)\.\.?(/|[?#]|$)")
+WS = " \t\n\v\f\r"  # cmark-gfm's whitespace; Python's \s also takes NBSP, U+3000 and \x1f
+ATTR = "[A-Za-z_:][A-Za-z0-9_.:-]*"
+# A CommonMark open tag up to an attribute's opening quote. A quoted value holds no
+# ` < or >, so a code span, comment or \< (/< by now) can't have swallowed the <
+TAG = re.compile(rf"""(?<!/)<[A-Za-z][A-Za-z0-9-]*(?:[{WS}]+{ATTR}(?:[{WS}]*=[{WS}]*(?:[^{WS}"'=<>`]+|'[^'`<>]*'|"[^"`<>]*"))?)*[{WS}]+{ATTR}[{WS}]*=[{WS}]*\Z""")
 
 
 def decode(s):
@@ -67,9 +72,10 @@ def extent(t, i):
     before, rest = t[:i], t[i:]
     if before.endswith(('="', "='")):  # an HTML attribute ends at its quote; markup follows
         url, _, after = rest.partition(before[-1])
-        glued = re.split(r"[\s>]", after, maxsplit=1)[0]
-        return url, "" if glued == "/" else glued  # "/> closes the tag
-    bare = re.split(r"[\s<]", rest, maxsplit=1)[0]  # a GFM bare autolink runs to whitespace or <
+        glued = re.split(f"[{WS}<]", after, maxsplit=1)[0]
+        # GFM autolinks on through the quote and > unless a real open tag closes there
+        return url, "" if re.match("/?>", glued) and TAG.search(before[:-1]) else glued
+    bare = re.split(f"[{WS}<]", rest, maxsplit=1)[0]  # a GFM bare autolink runs to whitespace or <
     if before.endswith("<"):
         return bare.split(">", 1)[0], ""
     if before.endswith("]("):  # ends at the matching )

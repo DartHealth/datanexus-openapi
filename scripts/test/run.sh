@@ -106,6 +106,8 @@ for url in 'https://www.darthealth.com?utm=x' 'https://www.darthealth.com#faq' '
   'Have you read [the spec](https://datanexus.darthealth.com/api/openapi)?' '(see https://datanexus.darthealth.com/api/openapi)?' \
   '[the spec](https://datanexus.darthealth.com/api/openapi)?!' '[the spec](https://datanexus.darthealth.com/api/openapi)#' \
   '<a href="https://datanexus.darthealth.com/api/openapi">api/openapi</a>' '<img src="https://datanexus.darthealth.com/api/openapi"/>' \
+  '<a class="x" href="https://datanexus.darthealth.com/api/openapi" target="_blank">spec</a>' \
+  '| [spec](https://datanexus.darthealth.com/api/openapi) | [x](https://github.com/x) |' \
   '[trust.darthealth.com](https://trust.darthealth.com/)' '[www.darthealth.com](https://www.darthealth.com/)' \
   '[datanexus.darthealth.com](https://datanexus.darthealth.com/api/openapi)' '[https://github.com](https://github.com)' \
   '[https://www.darthealth.com](https://www.darthealth.com/)' \
@@ -125,6 +127,7 @@ done
 # literal %, fails on rule 3, and the path is never printed.
 # Accepted cost: a production URL with a scheme fails as its own link text.
 # Accepted cost: a link glued with no space onto a production destination's ) fails.
+# So does a compact table cell |[spec](…/api/openapi)|[x](…)|: put spaces around |.
 for text in 'https://datanexus.darthealth.com/api/openapi)x/admin/sponsor_members/1' \
   "https://datanexus.darthealth.com/api/openapi)'s/admin/sponsor_members/1" \
   'https://datanexus.darthealth.com/api/openapi)./admin/sponsor_members/1' \
@@ -164,6 +167,12 @@ for text in 'https://datanexus.darthealth.com/api/openapi)x/admin/sponsor_member
   'x](//datanexus.darthealth.com/api/openapi)[/admin/sponsor_members/1' \
   'x](https://%7Binstance%7D.darthealth.com/api/openapi)[/admin/sponsor_members/1' \
   'x="https://datanexus.darthealth.com/api/openapi"/admin/sponsor_members/1' \
+  'x="https://datanexus.darthealth.com/api/openapi">/admin/sponsor_members/1' \
+  "x='https://datanexus.darthealth.com/api/openapi'>/admin/sponsor_members/1" \
+  'x="https://datanexus.darthealth.com/api/openapi"/>/admin/sponsor_members/1' \
+  'x="https://datanexus.darthealth.com/api/openapi"x>/admin/sponsor_members/1' \
+  '<a href="https://datanexus.darthealth.com/api/openapi"x>/admin/sponsor_members/1' \
+  '<a href="https://datanexus.darthealth.com/api/openapi"/x>/admin/sponsor_members/1' \
   '[a](https://datanexus.darthealth.com/api/openapi)[b](https://github.com/x)' \
   '%client.darthealth.com' 'Uptime 100%zz-acme.darthealth.com' '50%-acme.darthealth.com'; do
   printf 'See %s\n' "$text" > "$root/docs/query.md"
@@ -176,6 +185,24 @@ for text in 'https://datanexus.darthealth.com/api/openapi)x/admin/sponsor_member
   else
     echo "ok: fails $text"
   fi
+done
+# cmark-gfm's whitespace is ASCII only, so a link runs on through NBSP, U+3000 or \x1f.
+for ws in $'\xc2\xa0' $'\xe3\x80\x80' $'\x1f'; do
+  for text in "x](https://datanexus.darthealth.com/api/openapi)${ws}/admin/sponsor_members/1" \
+    "https://datanexus.darthealth.com/api/openapi${ws}/admin/sponsor_members/1"; do
+    printf 'See %s\n' "$text" > "$root/docs/query.md"
+    if ! grep -qF "$ws" "$root/docs/query.md"; then
+      bad "$text: the whitespace byte didn't reach the file"
+    elif out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
+      bad "$text passed but should fail on rule 3"
+    elif ! printf '%s\n' "$out" | grep -q ": rule 3:"; then
+      bad "$text failed, but not on rule 3: $out"
+    elif printf '%s\n' "$out" | grep -q 'sponsor_members'; then
+      bad "$text: output prints the path: $out"
+    else
+      echo "ok: fails $text"
+    fi
+  done
 done
 # A client host used as link text is checked, and named, up to the ] that closes it.
 printf 'See [acme.darthealth.com](https://www.darthealth.com/)\n' > "$root/docs/query.md"
