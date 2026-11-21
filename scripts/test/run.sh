@@ -105,7 +105,15 @@ for url in 'https://www.darthealth.com?utm=x' 'https://www.darthealth.com#faq' '
   '[a](https://datanexus.darthealth.com/api/openapi) and [b](//github.com/x)' '(https://datanexus.darthealth.com/api/openapi), then' \
   'Have you read [the spec](https://datanexus.darthealth.com/api/openapi)?' '(see https://datanexus.darthealth.com/api/openapi)?' \
   '[the spec](https://datanexus.darthealth.com/api/openapi)?!' '[the spec](https://datanexus.darthealth.com/api/openapi)#' \
-  '<a href="https://datanexus.darthealth.com/api/openapi">api/openapi</a>'; do
+  '<a href="https://datanexus.darthealth.com/api/openapi">api/openapi</a>' \
+  '[trust.darthealth.com](https://trust.darthealth.com/)' '[www.darthealth.com](https://www.darthealth.com/)' \
+  '[datanexus.darthealth.com](https://datanexus.darthealth.com/api/openapi)' '[https://github.com](https://github.com)' \
+  '[https://www.darthealth.com](https://www.darthealth.com/)' \
+  '[https://datanexus.darthealth.com/api/openapi](https://datanexus.darthealth.com/api/openapi)' \
+  '[`{instance}.darthealth.com`](https://www.darthealth.com/)' '[**trust.darthealth.com**](https://trust.darthealth.com/)' \
+  '[see trust.darthealth.com](https://trust.darthealth.com/)' "datanexus.darthealth.com's spec" \
+  "the {instance}.darthealth.com's root" 'trust.darthealth.com]' 'https://trust.darthealth.com]' \
+  '| datanexus.darthealth.com|' '| trust.darthealth.com|x |'; do
   printf 'See %s\n' "$url" > "$root/docs/query.md"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
     echo "ok: allowed $url"
@@ -127,6 +135,9 @@ for text in 'https://datanexus.darthealth.com/api/openapi)x/admin/sponsor_member
   'https://datanexus.darthealth.com/api/openapi)[b]/admin/sponsor_members/1' \
   'https://datanexus.darthealth.com/api/openapi)//github.com/admin/sponsor_members/1' \
   'https://datanexus.darthealth.com/api/openapi)https://github.com/admin/sponsor_members/1' \
+  '[x](https://datanexus.darthealth.com/admin/sponsor_members/1)' 'datanexus.darthealth.com%2Fadmin%2Fsponsor_members%2F1' \
+  '[https://datanexus.darthealth.com/admin/sponsor_members/1](https://www.darthealth.com/)' \
+  '[datanexus.darthealth.com/admin/sponsor_members/1](https://www.darthealth.com/)' \
   '%client.darthealth.com' 'Uptime 100%zz-acme.darthealth.com' '50%-acme.darthealth.com'; do
   printf 'See %s\n' "$text" > "$root/docs/query.md"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
@@ -139,6 +150,14 @@ for text in 'https://datanexus.darthealth.com/api/openapi)x/admin/sponsor_member
     echo "ok: fails $text"
   fi
 done
+# A client host used as link text is checked, and named, up to the ] that closes it.
+printf 'See [acme.darthealth.com](https://www.darthealth.com/)\n' > "$root/docs/query.md"
+out="$("$scripts/check-spec.sh" "$root" 2>&1)"
+if printf '%s\n' "$out" | grep -qx 'FAIL docs/query.md: rule 3: URL host not allowed: acme\.darthealth\.com'; then
+  echo "ok: a client host in link text is named"
+else
+  bad "a client host in link text: $out"
+fi
 out="$("$scripts/check-spec.sh" "$work/rule3-host-query" 2>&1)"
 if printf '%s\n' "$out" | grep -qx 'FAIL README.md: rule 3: URL host not allowed: internal\.example-corp\.io'; then
   echo "ok: disallowed host is named without its query"

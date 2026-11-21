@@ -57,10 +57,13 @@ def extent(t, i):
             depth += {"(": 1, ")": -1}.get(c, 0)
             if not depth:
                 return bare[:j], re.split(r"\[", bare[j + 1:], maxsplit=1)[0]
-    while True:  # a bare autolink drops trailing punctuation, then an unbalanced )
+    if before.count("[") > before.count("]"):  # link text ends at its ](; GFM never autolinks inside it
+        bare = bare.split("](", 1)[0]
+    while True:  # a bare autolink drops trailing punctuation, then an unbalanced ) or ]
         s = bare.rstrip(PUNCT)
-        if s.endswith(")") and s.count(")") > s.count("("):
-            s = s[:-1]
+        for close, open_ in ((")", "("), ("]", "[")):
+            if s.endswith(close) and s.count(close) > s.count(open_):
+                s = s[:-1]
         if s == bare:
             return bare, ""
         bare = s
@@ -110,15 +113,20 @@ def main(path):
             found = []
             for i, t in enumerate(layers):
                 urls = list(URL.finditer(t))
-                found += [(t, m.start(), "") for m in urls]
+                found += [(t, m.start(), "", None) for m in urls]
                 # A name right after a URL's // is that URL's host, checked with it. One
                 # right after a % is an escape's tail (%7Binstance%7D) until the last
                 # layer, where any % left is literal
                 hosts = {m.end() for m in urls}
-                found += [(t, m.start(), "//") for m in NAME.finditer(t) if m.start() not in hosts
+                found += [(t, m.start(), "//", m.end()) for m in NAME.finditer(t) if m.start() not in hosts
                           and (i == len(layers) - 1 or t[m.start() - 1:m.start()] != "%")]
-            for t, start, prefix in found:
-                url, glued = extent(t, start)
+            for t, start, prefix, end in found:
+                # GFM never autolinks a schemeless name, so it ends with its hostname
+                # unless what follows could carry a path, port or userinfo
+                if end and not re.match(r"[/?#:@%\\]", t[end:]):
+                    url, glued = t[start:end], ""
+                else:
+                    url, glued = extent(t, start)
                 failure = check(prefix + url, glued, n, secret)
                 if failure:
                     failures[failure] = None
