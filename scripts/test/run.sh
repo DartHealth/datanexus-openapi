@@ -102,7 +102,10 @@ for url in 'https://www.darthealth.com?utm=x' 'https://www.darthealth.com#faq' '
   'https://datanexus.darthealth.com/api/openapi/' 'https://datanexus.darthealth.com:443/api/openapi' \
   'x = 1; //TODO fix' 'acme.darthealth.com-old.org' \
   "[spec](https://datanexus.darthealth.com/api/openapi)'s" '[a](https://datanexus.darthealth.com/api/openapi)[b](https://github.com/x)' \
-  '[a](https://datanexus.darthealth.com/api/openapi) and [b](//github.com/x)' '(https://datanexus.darthealth.com/api/openapi), then'; do
+  '[a](https://datanexus.darthealth.com/api/openapi) and [b](//github.com/x)' '(https://datanexus.darthealth.com/api/openapi), then' \
+  'Have you read [the spec](https://datanexus.darthealth.com/api/openapi)?' '(see https://datanexus.darthealth.com/api/openapi)?' \
+  '[the spec](https://datanexus.darthealth.com/api/openapi)?!' '[the spec](https://datanexus.darthealth.com/api/openapi)#' \
+  '<a href="https://datanexus.darthealth.com/api/openapi">api/openapi</a>'; do
   printf 'See %s\n' "$url" > "$root/docs/query.md"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
     echo "ok: allowed $url"
@@ -119,6 +122,11 @@ for text in 'https://datanexus.darthealth.com/api/openapi)x/admin/sponsor_member
   'https://datanexus.darthealth.com/api/openapi)//admin/sponsor_members/1' \
   'https://datanexus.darthealth.com/api/openapi)?u=/admin/sponsor_members/1' \
   'https://datanexus.darthealth.com/api/openapi)#/admin/sponsor_members/1' \
+  'https://datanexus.darthealth.com/api/openapi)[/admin/sponsor_members/1' \
+  'https://datanexus.darthealth.com/api/openapi)x[/admin/sponsor_members/1' \
+  'https://datanexus.darthealth.com/api/openapi)[b]/admin/sponsor_members/1' \
+  'https://datanexus.darthealth.com/api/openapi)//github.com/admin/sponsor_members/1' \
+  'https://datanexus.darthealth.com/api/openapi)https://github.com/admin/sponsor_members/1' \
   '%client.darthealth.com' 'Uptime 100%zz-acme.darthealth.com' '50%-acme.darthealth.com'; do
   printf 'See %s\n' "$text" > "$root/docs/query.md"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then

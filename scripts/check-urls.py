@@ -32,8 +32,7 @@ NAME = re.compile(r"(?<![a-z0-9{}-])(?:[a-z0-9{}-]+\.)+darthealth\.com(?![a-z0-9
 USERINFO = re.compile(r"(^|[^/A-Za-z0-9._~%+-])[A-Za-z0-9._~%+-]+:[^/?#@\s]*@")
 # Anything userinfo-shaped; a line with it has no host printed, as a host may be a password
 SECRET = re.compile(r"(:|//)\S*@")
-DELIMS = re.compile(r"[)\]\"'`>]")  # ends a Markdown or HTML link
-TRAILING = ".,;:!?*_~)]\"'`>"  # sentence punctuation and link closers
+PUNCT = "?!.,:;*_~'\"`"  # trailing punctuation a bare autolink drops
 DOT_SEGMENT = re.compile(r"(^|/)\.\.?(/|[?#]|$)")
 
 
@@ -43,15 +42,35 @@ def decode(s):
     return s.replace("\\", "/")
 
 
-def check(span, n, secret):
+def extent(t, i):
+    """The URL starting at t[i], ended by what opened it, and for a Markdown
+    link destination the text glued after its closing )."""
+    before, rest = t[:i], t[i:]
+    if before.endswith(('="', "='")):  # an HTML attribute ends at its quote; markup follows
+        return rest.split(before[-1], 1)[0], ""
+    bare = re.split(r"[\s<]", rest, maxsplit=1)[0]  # a GFM bare autolink runs to whitespace or <
+    if before.endswith("<"):
+        return bare.split(">", 1)[0], ""
+    if before.endswith("]("):  # ends at the matching )
+        depth = 1
+        for j, c in enumerate(bare):
+            depth += {"(": 1, ")": -1}.get(c, 0)
+            if not depth:
+                return bare[:j], re.split(r"\[", bare[j + 1:], maxsplit=1)[0]
+    while True:  # a bare autolink drops trailing punctuation, then an unbalanced )
+        s = bare.rstrip(PUNCT)
+        if s.endswith(")") and s.count(")") > s.count("("):
+            s = s[:-1]
+        if s == bare:
+            return bare, ""
+        bare = s
+
+
+def check(url, glued, n, secret):
     """Returns the failure for one URL (scheme:// or // and what follows), or None."""
-    # A Markdown or HTML delimiter ends the link; a browser autolinks to whitespace
-    cut = DELIMS.split(span, 1)[0]
-    narrow, after = cut.rstrip(TRAILING), decode(span[len(cut):])
-    wide = decode(span).rstrip(TRAILING)
     try:
         # Split before decoding: github.com%2F~@host is userinfo on host, not a path
-        u = urlsplit("//" + re.sub(r"^([a-z][a-z0-9+.-]*:)?/+", "", narrow, flags=re.I))
+        u = urlsplit("//" + re.sub(r"^([a-z][a-z0-9+.-]*:)?/+", "", url, flags=re.I))
         host = decode(u.hostname or "").lower()
     except ValueError:
         return f"a URL's host can't be parsed at line {n} (not printed)"
@@ -65,12 +84,12 @@ def check(span, n, secret):
         if secret or not re.fullmatch(r"[a-z0-9.-]+", host):
             return f"URL host not allowed at line {n} (not printed)"
         return f"URL host not allowed: {host}"
-    # The path may name a record; the query can carry one too (?url=/admin/...).
-    # A browser autolinks past a mid-span ) or ', so a path, query or fragment
-    # after one (up to the next link or URL), or a .. anywhere, reaches past the spec
-    past = re.split(r"\[|" + URL.pattern, after, maxsplit=1, flags=re.I)[0]
+    # The path may name a record; the query can carry one too (?url=/admin/...),
+    # a .. can climb out of the spec, and text glued after a Markdown link's )
+    # can carry a record path as well
+    glued = decode(glued).rstrip(PUNCT)
     if host in PROD and (decode(u.path) not in PROD_PATHS or re.search("[/:]", decode(u.query + u.fragment))
-                         or re.search("[/?#]", past) or DOT_SEGMENT.search(wide)):
+                         or DOT_SEGMENT.search(decode(url)) or (glued != "#" and re.search("[/?#]", glued))):
         return f"path not allowed on {host} at line {n} (not printed)"
     return None
 
@@ -88,13 +107,19 @@ def main(path):
             secret = any(SECRET.search(t) for t in layers)
             if any(USERINFO.search(t) for t in layers):
                 failures[f"userinfo without a scheme at line {n} (not printed)"] = None
-            spans = [t[m.start():] for t in layers for m in URL.finditer(t)]
-            # A name right after a % is an escape's tail (%7Binstance%7D) until the
-            # last layer, where any % left is literal
-            spans += ["//" + t[m.start():] for i, t in enumerate(layers) for m in NAME.finditer(t)
-                      if i == len(layers) - 1 or t[m.start() - 1:m.start()] != "%"]
-            for span in spans:
-                failure = check(re.split(r"[\s<]", span, maxsplit=1)[0], n, secret)
+            found = []
+            for i, t in enumerate(layers):
+                urls = list(URL.finditer(t))
+                found += [(t, m.start(), "") for m in urls]
+                # A name right after a URL's // is that URL's host, checked with it. One
+                # right after a % is an escape's tail (%7Binstance%7D) until the last
+                # layer, where any % left is literal
+                hosts = {m.end() for m in urls}
+                found += [(t, m.start(), "//") for m in NAME.finditer(t) if m.start() not in hosts
+                          and (i == len(layers) - 1 or t[m.start() - 1:m.start()] != "%")]
+            for t, start, prefix in found:
+                url, glued = extent(t, start)
+                failure = check(prefix + url, glued, n, secret)
                 if failure:
                     failures[failure] = None
     for failure in failures:
