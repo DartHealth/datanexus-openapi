@@ -109,13 +109,10 @@ for url in 'https://www.darthealth.com?utm=x' 'https://www.darthealth.com#faq' '
   '[trust.darthealth.com](https://trust.darthealth.com/)' '[www.darthealth.com](https://www.darthealth.com/)' \
   '[datanexus.darthealth.com](https://datanexus.darthealth.com/api/openapi)' '[https://github.com](https://github.com)' \
   '[https://www.darthealth.com](https://www.darthealth.com/)' \
-  '[https://datanexus.darthealth.com/api/openapi](https://datanexus.darthealth.com/api/openapi)' \
   '[`{instance}.darthealth.com`](https://www.darthealth.com/)' '[**trust.darthealth.com**](https://trust.darthealth.com/)' \
   '[see trust.darthealth.com](https://trust.darthealth.com/)' "datanexus.darthealth.com's spec" \
   "the {instance}.darthealth.com's root" 'trust.darthealth.com]' 'https://trust.darthealth.com]' \
-  '| datanexus.darthealth.com|' '| trust.darthealth.com|x |' \
-  '**[https://datanexus.darthealth.com/api/openapi](https://datanexus.darthealth.com/api/openapi)**' \
-  '([https://datanexus.darthealth.com/api/openapi](https://datanexus.darthealth.com/api/openapi)).'; do
+  '| datanexus.darthealth.com|' '| trust.darthealth.com|x |'; do
   printf 'See %s\n' "$url" > "$root/docs/query.md"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
     echo "ok: allowed $url"
@@ -126,6 +123,7 @@ done
 
 # A path past a link closer on the production host, or a client host after a
 # literal %, fails on rule 3, and the path is never printed.
+# Accepted cost: a production URL with a scheme fails as its own link text.
 for text in 'https://datanexus.darthealth.com/api/openapi)x/admin/sponsor_members/1' \
   "https://datanexus.darthealth.com/api/openapi)'s/admin/sponsor_members/1" \
   'https://datanexus.darthealth.com/api/openapi)./admin/sponsor_members/1' \
@@ -146,6 +144,17 @@ for text in 'https://datanexus.darthealth.com/api/openapi)x/admin/sponsor_member
   'https://github.com/x?u=[https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1' \
   'https://github.com/x?u=%5Bhttps://datanexus.darthealth.com/api/openapi%5D%28/admin/sponsor_members/1' \
   '\[ https://datanexus.darthealth.com/api/openapi](https://github.com/admin/sponsor_members/1' \
+  '[https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1' \
+  '[ https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1' \
+  '[x https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1 x)' \
+  'https://github.com/x?u=([https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1' \
+  'https://github.com/x?u=*[https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1' \
+  '[a](<https://github.com/x [>) https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1' \
+  '`` [ `` https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1' \
+  '<span title=" ["> https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1' \
+  '[https://datanexus.darthealth.com/api/openapi](https://datanexus.darthealth.com/api/openapi)' \
+  '**[https://datanexus.darthealth.com/api/openapi](https://datanexus.darthealth.com/api/openapi)**' \
+  '([https://datanexus.darthealth.com/api/openapi](https://datanexus.darthealth.com/api/openapi)).' \
   '%client.darthealth.com' 'Uptime 100%zz-acme.darthealth.com' '50%-acme.darthealth.com'; do
   printf 'See %s\n' "$text" > "$root/docs/query.md"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
