@@ -113,7 +113,9 @@ for url in 'https://www.darthealth.com?utm=x' 'https://www.darthealth.com#faq' '
   '[`{instance}.darthealth.com`](https://www.darthealth.com/)' '[**trust.darthealth.com**](https://trust.darthealth.com/)' \
   '[see trust.darthealth.com](https://trust.darthealth.com/)' "datanexus.darthealth.com's spec" \
   "the {instance}.darthealth.com's root" 'trust.darthealth.com]' 'https://trust.darthealth.com]' \
-  '| datanexus.darthealth.com|' '| trust.darthealth.com|x |'; do
+  '| datanexus.darthealth.com|' '| trust.darthealth.com|x |' \
+  '**[https://datanexus.darthealth.com/api/openapi](https://datanexus.darthealth.com/api/openapi)**' \
+  '([https://datanexus.darthealth.com/api/openapi](https://datanexus.darthealth.com/api/openapi)).'; do
   printf 'See %s\n' "$url" > "$root/docs/query.md"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
     echo "ok: allowed $url"
@@ -138,6 +140,12 @@ for text in 'https://datanexus.darthealth.com/api/openapi)x/admin/sponsor_member
   '[x](https://datanexus.darthealth.com/admin/sponsor_members/1)' 'datanexus.darthealth.com%2Fadmin%2Fsponsor_members%2F1' \
   '[https://datanexus.darthealth.com/admin/sponsor_members/1](https://www.darthealth.com/)' \
   '[datanexus.darthealth.com/admin/sponsor_members/1](https://www.darthealth.com/)' \
+  '\[ https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1' \
+  '`[` https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1)' \
+  '[a](https://github.com/x[) https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1)' \
+  'https://github.com/x?u=[https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1' \
+  'https://github.com/x?u=%5Bhttps://datanexus.darthealth.com/api/openapi%5D%28/admin/sponsor_members/1' \
+  '\[ https://datanexus.darthealth.com/api/openapi](https://github.com/admin/sponsor_members/1' \
   '%client.darthealth.com' 'Uptime 100%zz-acme.darthealth.com' '50%-acme.darthealth.com'; do
   printf 'See %s\n' "$text" > "$root/docs/query.md"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then

@@ -42,9 +42,33 @@ def decode(s):
     return s.replace("\\", "/")
 
 
-def extent(t, i):
+def split(url):
+    """The URL's parts and its decoded, lowercased host. The authority is split
+    off before decoding: github.com%2F~@host is userinfo on host, not a path."""
+    u = urlsplit("//" + re.sub(r"^([a-z][a-z0-9+.-]*:)?/+", "", url, flags=re.I))
+    return u, decode(u.hostname or "").lower()
+
+
+def opens_link_text(before):
+    """Whether the nearest unmatched [ in before opens Markdown link text: outside
+    a code span, and at line start or after whitespace or ( ! * _ [, so an
+    escaping \\ also rules it out."""
+    depth = 0
+    for k in range(len(before) - 1, -1, -1):
+        if before[k] == "]":
+            depth += 1
+        elif before[k] == "[":
+            if depth:
+                depth -= 1
+                continue
+            return before.count("`", 0, k) % 2 == 0 and (k == 0 or before[k - 1].isspace() or before[k - 1] in "(!*_[")
+    return False
+
+
+def extent(t, i, raw):
     """The URL starting at t[i], ended by what opened it, and for a Markdown
-    link destination the text glued after its closing )."""
+    link destination the text glued after its closing ). raw is the undecoded
+    line when t is its first layer, else None: a decoded [ is never markup."""
     before, rest = t[:i], t[i:]
     if before.endswith(('="', "='")):  # an HTML attribute ends at its quote; markup follows
         return rest.split(before[-1], 1)[0], ""
@@ -57,8 +81,16 @@ def extent(t, i):
             depth += {"(": 1, ")": -1}.get(c, 0)
             if not depth:
                 return bare[:j], re.split(r"\[", bare[j + 1:], maxsplit=1)[0]
-    if before.count("[") > before.count("]"):  # link text ends at its ](; GFM never autolinks inside it
-        bare = bare.split("](", 1)[0]
+    if before.count("[") > before.count("]") and "](" in bare:  # link text ends at its ](
+        cut = bare.split("](", 1)[0]
+        # GFM autolinks past a [ that opens no link text, so on a production host
+        # cut only when the [ surely opens it, else the path runs on and fails
+        try:
+            prod = split(cut)[1] in PROD
+        except ValueError:
+            prod = True
+        if not prod or (raw is not None and opens_link_text(raw[:i])):
+            bare = cut
     while True:  # a bare autolink drops trailing punctuation, then an unbalanced ) or ]
         s = bare.rstrip(PUNCT)
         for close, open_ in ((")", "("), ("]", "[")):
@@ -72,9 +104,7 @@ def extent(t, i):
 def check(url, glued, n, secret):
     """Returns the failure for one URL (scheme:// or // and what follows), or None."""
     try:
-        # Split before decoding: github.com%2F~@host is userinfo on host, not a path
-        u = urlsplit("//" + re.sub(r"^([a-z][a-z0-9+.-]*:)?/+", "", url, flags=re.I))
-        host = decode(u.hostname or "").lower()
+        u, host = split(url)
     except ValueError:
         return f"a URL's host can't be parsed at line {n} (not printed)"
     if "@" in u.netloc:
@@ -113,20 +143,21 @@ def main(path):
             found = []
             for i, t in enumerate(layers):
                 urls = list(URL.finditer(t))
-                found += [(t, m.start(), "", None) for m in urls]
+                raw = line if i == 0 else None  # the first layer only swaps \ for /, so indexes match
+                found += [(t, m.start(), "", None, raw) for m in urls]
                 # A name right after a URL's // is that URL's host, checked with it. One
                 # right after a % is an escape's tail (%7Binstance%7D) until the last
                 # layer, where any % left is literal
                 hosts = {m.end() for m in urls}
-                found += [(t, m.start(), "//", m.end()) for m in NAME.finditer(t) if m.start() not in hosts
+                found += [(t, m.start(), "//", m.end(), raw) for m in NAME.finditer(t) if m.start() not in hosts
                           and (i == len(layers) - 1 or t[m.start() - 1:m.start()] != "%")]
-            for t, start, prefix, end in found:
+            for t, start, prefix, end, raw in found:
                 # GFM never autolinks a schemeless name, so it ends with its hostname
-                # unless what follows could carry a path, port or userinfo
-                if end and not re.match(r"[/?#:@%\\]", t[end:]):
+                # unless what follows could carry a path, port or userinfo (\ is / by now)
+                if end and not re.match(r"[/?#:@%]", t[end:]):
                     url, glued = t[start:end], ""
                 else:
-                    url, glued = extent(t, start)
+                    url, glued = extent(t, start, raw)
                 failure = check(prefix + url, glued, n, secret)
                 if failure:
                     failures[failure] = None
