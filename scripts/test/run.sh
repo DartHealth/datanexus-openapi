@@ -105,7 +105,7 @@ for url in 'https://www.darthealth.com?utm=x' 'https://www.darthealth.com#faq' '
   '[a](https://datanexus.darthealth.com/api/openapi) and [b](//github.com/x)' '(https://datanexus.darthealth.com/api/openapi), then' \
   'Have you read [the spec](https://datanexus.darthealth.com/api/openapi)?' '(see https://datanexus.darthealth.com/api/openapi)?' \
   '[the spec](https://datanexus.darthealth.com/api/openapi)?!' '[the spec](https://datanexus.darthealth.com/api/openapi)#' \
-  '<a href="https://datanexus.darthealth.com/api/openapi">api/openapi</a>' '<img src="https://datanexus.darthealth.com/api/openapi"/>' \
+  '<a href="https://datanexus.darthealth.com/api/openapi">spec</a>' '<img src="https://datanexus.darthealth.com/api/openapi"/>' \
   '<a class="x" href="https://datanexus.darthealth.com/api/openapi" target="_blank">spec</a>' \
   '| [spec](https://datanexus.darthealth.com/api/openapi) | [x](https://github.com/x) |' \
   '[trust.darthealth.com](https://trust.darthealth.com/)' '[www.darthealth.com](https://www.darthealth.com/)' \
@@ -128,6 +128,8 @@ done
 # Accepted cost: a production URL with a scheme fails as its own link text.
 # Accepted cost: a link glued with no space onto a production destination's ) fails.
 # So does a compact table cell |[spec](…/api/openapi)|[x](…)|: put spaces around |.
+# So does a production attribute's tag whose text holds / ? # or \: <a href="…/api/openapi">api/openapi</a>.
+# A non-production URL followed by NBSP or another non-ASCII space fails as host-not-allowed, as GFM's href would.
 for text in 'https://datanexus.darthealth.com/api/openapi)x/admin/sponsor_members/1' \
   "https://datanexus.darthealth.com/api/openapi)'s/admin/sponsor_members/1" \
   'https://datanexus.darthealth.com/api/openapi)./admin/sponsor_members/1' \
@@ -173,6 +175,10 @@ for text in 'https://datanexus.darthealth.com/api/openapi)x/admin/sponsor_member
   'x="https://datanexus.darthealth.com/api/openapi"x>/admin/sponsor_members/1' \
   '<a href="https://datanexus.darthealth.com/api/openapi"x>/admin/sponsor_members/1' \
   '<a href="https://datanexus.darthealth.com/api/openapi"/x>/admin/sponsor_members/1' \
+  '[t](f (<a x=y)) href="https://datanexus.darthealth.com/api/openapi">/admin/sponsor_members/1' \
+  '![t](f (<a x=y)) href="https://datanexus.darthealth.com/api/openapi">/admin/sponsor_members/1' \
+  "[t](f '<a x=\"y')\" href=\"https://datanexus.darthealth.com/api/openapi\">/admin/sponsor_members/1" \
+  '<a href="https://datanexus.darthealth.com/api/openapi">api/openapi</a>' \
   '[a](https://datanexus.darthealth.com/api/openapi)[b](https://github.com/x)' \
   '%client.darthealth.com' 'Uptime 100%zz-acme.darthealth.com' '50%-acme.darthealth.com'; do
   printf 'See %s\n' "$text" > "$root/docs/query.md"
