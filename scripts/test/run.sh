@@ -7,7 +7,7 @@ set -u
 here="$(cd "$(dirname "$0")" && pwd)"
 scripts="$(cd "$here/.." && pwd)"
 fixtures="$here/fixtures"
-work="$(mktemp -d)"
+work="$(mktemp -d "${TMPDIR:-/tmp}/check-spec.XXXXXX")" || exit 1  # a bare mktemp -d ignores a sandbox's TMPDIR
 trap 'rm -rf "$work"' EXIT
 errors=0
 

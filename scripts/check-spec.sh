@@ -85,9 +85,10 @@ for f in ${files[@]+"${files[@]}"}; do
   fi
 
   # Rule 7: something that looks like a Data Nexus API key (exactly 20
-  # url-safe base64 characters) after apikey / api_key / API_KEY, allowing up
-  # to five separator characters (space, =, :, quotes) as in "api_key": "..."
-  if grep -qiE 'api_?key[^A-Za-z0-9_-]{1,5}[A-Za-z0-9_-]{20}([^A-Za-z0-9_-]|$)' "$f"; then
+  # url-safe base64 characters) after apikey / api_key / api-key / API_KEY,
+  # allowing up to five separator characters (space, =, :, quotes) as in
+  # "api_key": "..." or an X-Api-Key: header
+  if grep -qiE 'api[-_]?key[^A-Za-z0-9_-]{1,5}[A-Za-z0-9_-]{20}([^A-Za-z0-9_-]|$)' "$f"; then
     fail "$rel" 7 "contains what looks like an API key"
   fi
 
