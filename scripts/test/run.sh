@@ -114,7 +114,9 @@ for url in 'https://www.darthealth.com?utm=x' 'https://www.darthealth.com#faq' '
   '[`{instance}.darthealth.com`](https://www.darthealth.com/)' '[**trust.darthealth.com**](https://trust.darthealth.com/)' \
   '[see trust.darthealth.com](https://trust.darthealth.com/)' "datanexus.darthealth.com's spec" \
   "the {instance}.darthealth.com's root" 'trust.darthealth.com]' 'https://trust.darthealth.com]' \
-  '| datanexus.darthealth.com|' '| trust.darthealth.com|x |'; do
+  '| datanexus.darthealth.com|' '| trust.darthealth.com|x |' \
+  '[a](https://www.darthealth.com/?a=1&amp;b=2)' '[spec](https://datanexus.darthealth.com/api/openapi)' \
+  'Fish &amp; chips at https://www.darthealth.com/'; do
   printf 'See %s\n' "$url" > "$root/docs/query.md"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
     echo "ok: allowed $url"
@@ -129,7 +131,6 @@ done
 # Accepted cost: a link glued with no space onto a production destination's ) fails.
 # So does a compact table cell |[spec](…/api/openapi)|[x](…)|: put spaces around |.
 # So does a production attribute's tag whose text holds / ? # or \: <a href="…/api/openapi">api/openapi</a>.
-# A non-production URL followed by NBSP or another non-ASCII space fails as host-not-allowed, as GFM's href would.
 for text in 'https://datanexus.darthealth.com/api/openapi)x/admin/sponsor_members/1' \
   "https://datanexus.darthealth.com/api/openapi)'s/admin/sponsor_members/1" \
   'https://datanexus.darthealth.com/api/openapi)./admin/sponsor_members/1' \
@@ -180,6 +181,13 @@ for text in 'https://datanexus.darthealth.com/api/openapi)x/admin/sponsor_member
   "[t](f '<a x=\"y')\" href=\"https://datanexus.darthealth.com/api/openapi\">/admin/sponsor_members/1" \
   '<a href="https://datanexus.darthealth.com/api/openapi">api/openapi</a>' \
   '[a](https://datanexus.darthealth.com/api/openapi)[b](https://github.com/x)' \
+  '[a](https://datanexus.darthealth.com/api/openapi?url=&sol;admin&sol;sponsor_members&sol;1)' \
+  '[a](https://datanexus.darthealth.com/api/openapi?url=&#47;admin&#47;sponsor_members&#47;1)' \
+  '[a](https://datanexus.darthealth.com/api/openapi#&sol;admin&sol;sponsor_members&sol;1)' \
+  '<https://datanexus.darthealth.com/api/openapi?url=&sol;admin&sol;sponsor_members&sol;1>' \
+  '<a href="https://datanexus.darthealth.com/api/openapi?url=&sol;admin&sol;sponsor_members&sol;1">spec</a>' \
+  '[a](https://datanexus.darthealth.com/api/openapi)&sol;admin&sol;sponsor_members' \
+  '[a](https://datanexus.darthealth.com/api/openapi?x=&#37;2Fadmin)' 'acme&period;darthealth&period;com' \
   '%client.darthealth.com' 'Uptime 100%zz-acme.darthealth.com' '50%-acme.darthealth.com'; do
   printf 'See %s\n' "$text" > "$root/docs/query.md"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
@@ -193,9 +201,10 @@ for text in 'https://datanexus.darthealth.com/api/openapi)x/admin/sponsor_member
   fi
 done
 # cmark-gfm's whitespace is ASCII only, so a link runs on through NBSP, U+3000 or \x1f.
+# A non-production URL fails on one only directly after its host, as host-not-allowed, as GFM's href would.
 for ws in $'\xc2\xa0' $'\xe3\x80\x80' $'\x1f'; do
   for text in "x](https://datanexus.darthealth.com/api/openapi)${ws}/admin/sponsor_members/1" \
-    "https://datanexus.darthealth.com/api/openapi${ws}/admin/sponsor_members/1"; do
+    "https://datanexus.darthealth.com/api/openapi${ws}/admin/sponsor_members/1" "https://github.com${ws}x"; do
     printf 'See %s\n' "$text" > "$root/docs/query.md"
     if ! grep -qF "$ws" "$root/docs/query.md"; then
       bad "$text: the whitespace byte didn't reach the file"

@@ -4,12 +4,14 @@ every darthealth.com name written without one is on the allowlist, carries no
 credentials, and on a production host links only the root or the spec.
 
 Each URL is read the way a browser reads it: \\ as /, the authority split off
-before anything is percent-decoded, then the host and path decoded, the host
+before anything is decoded, then the host and path decoded (percent escapes
+and HTML character references, until neither changes anything), the host
 lowercased and a numeric port dropped. Prints one failure
 message per line and nothing when the file passes. Never prints userinfo, a
 production path, or a host from a line that carries userinfo.
 Usage: check-urls.py FILE
 """
+import html
 import re
 import sys
 from urllib.parse import unquote, urlsplit
@@ -37,10 +39,17 @@ DOT_SEGMENT = re.compile(r"(^|/)\.\.?(/|[?#]|$)")
 WS = " \t\n\v\f\r"  # cmark-gfm's whitespace; Python's \s also takes NBSP, U+3000 and \x1f
 
 
+def peel(s):
+    """One decoding layer: percent-decoding, or once that changes nothing, the
+    character references CommonMark decodes in a link and a browser in an attribute"""
+    d = unquote(s)
+    return (d if d != s else html.unescape(s)).replace("\\", "/")
+
+
 def decode(s):
-    while (d := unquote(s)) != s:
+    while (d := peel(s)) != s:
         s = d
-    return s.replace("\\", "/")
+    return s
 
 
 def split(url):
@@ -130,7 +139,7 @@ def main(path):
             # Every decoding layer: a URL nested in another's query is a URL of its
             # own, read with only the encoding left on it at that layer
             layers = [line.replace("\\", "/")]
-            while (d := unquote(layers[-1]).replace("\\", "/")) != layers[-1]:
+            while (d := peel(layers[-1])) != layers[-1]:
                 layers.append(d)
             secret = any(SECRET.search(t) for t in layers)
             if any(USERINFO.search(t) for t in layers):
