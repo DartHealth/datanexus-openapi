@@ -74,7 +74,9 @@ for f in ${files[@]+"${files[@]}"}; do
   while IFS= read -r email; do
     [ -z "$email" ] && continue
     lower="$(printf '%s' "$email" | tr '[:upper:]' '[:lower:]')"
-    email_allowed "$lower" || fail "$rel" 5 "email not allowed: ...@${lower#*@}"
+    domain="...@${lower#*@}"
+    case "$domain" in *[@.]darthealth.com) domain="(domain not printed)" ;; esac  # a client's name
+    email_allowed "$lower" || fail "$rel" 5 "email not allowed: $domain"
   done < <(grep -oE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' "$f" || true)
 
   # Rule 6: SSN-shaped strings

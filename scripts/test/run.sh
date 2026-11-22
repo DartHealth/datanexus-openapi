@@ -131,6 +131,7 @@ done
 # Accepted cost: a link glued with no space onto a production destination's ) fails.
 # So does a compact table cell |[spec](…/api/openapi)|[x](…)|: put spaces around |.
 # So does a production attribute's tag whose text holds / ? # or \: <a href="…/api/openapi">api/openapi</a>.
+# So does a production URL in an attribute whose value wraps a line.
 for text in 'https://datanexus.darthealth.com/api/openapi)x/admin/sponsor_members/1' \
   "https://datanexus.darthealth.com/api/openapi)'s/admin/sponsor_members/1" \
   'https://datanexus.darthealth.com/api/openapi)./admin/sponsor_members/1' \
@@ -188,7 +189,10 @@ for text in 'https://datanexus.darthealth.com/api/openapi)x/admin/sponsor_member
   '<a href="https://datanexus.darthealth.com/api/openapi?url=&sol;admin&sol;sponsor_members&sol;1">spec</a>' \
   '[a](https://datanexus.darthealth.com/api/openapi)&sol;admin&sol;sponsor_members' \
   '[a](https://datanexus.darthealth.com/api/openapi?x=&#37;2Fadmin)' 'acme&period;darthealth&period;com' \
-  'acme&#46;darthealth&#46;com' '%client.darthealth.com' 'Uptime 100%zz-acme.darthealth.com' '50%-acme.darthealth.com'; do
+  'acme&#46;darthealth&#46;com' '%client.darthealth.com' 'Uptime 100%zz-acme.darthealth.com' '50%-acme.darthealth.com' \
+  $'<a href="https://datanexus.darthealth.com\n/admin/sponsor_members/1">spec</a>' \
+  $'<a href=\'https://datanexus.darthealth.com/api/openapi\n/../../admin/sponsor_members/1\'>x</a>' \
+  $'<a href="https://{instance}.darthealth.com/\nadmin/sponsor_members/1">x</a>'; do
   printf 'See %s\n' "$text" > "$root/docs/query.md"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
     bad "$text passed but should fail on rule 3"
@@ -205,7 +209,8 @@ done
 for text in 'https://datanexus.darthealth.com/api/openapi?url=//john.doe.example-corp.io' \
   'https://datanexus.darthealth.com/api/openapi?url=%2F%2Fjohn.doe.example-corp.io' \
   'https://datanexus.darthealth.com/api/openapi?url=&sol;&sol;john.doe.example-corp.io' \
-  '[a](https://datanexus.darthealth.com/api/openapi#&sol;&sol;sponsor.members.io)'; do
+  '[a](https://datanexus.darthealth.com/api/openapi#&sol;&sol;sponsor.members.io)' \
+  'https://datanexus.darthealth.com:x/admin/(//john.doe.example-corp.io'; do
   printf 'See %s\n' "$text" > "$root/docs/query.md"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
     bad "$text passed but should fail on rule 3"
@@ -236,13 +241,27 @@ for ws in $'\xc2\xa0' $'\xe3\x80\x80' $'\x1f'; do
     fi
   done
 done
-# A client host used as link text is checked, and named, up to the ] that closes it.
-printf 'See [acme.darthealth.com](https://www.darthealth.com/)\n' > "$root/docs/query.md"
+# A client host, bare or used as link text up to the ] that closes it, fails without its name.
+for text in '[acme.darthealth.com](https://www.darthealth.com/)' 'acme.darthealth.com'; do
+  printf 'See %s\n' "$text" > "$root/docs/query.md"
+  out="$("$scripts/check-spec.sh" "$root" 2>&1)"
+  if ! printf '%s\n' "$out" | grep -qx 'FAIL docs/query.md: rule 3: URL host not allowed at line 1 (not printed)'; then
+    bad "$text: a client host isn't withheld: $out"
+  elif printf '%s\n' "$out" | grep -q 'acme'; then
+    bad "$text: output names a client: $out"
+  else
+    echo "ok: withholds the client in $text"
+  fi
+done
+# So does an email on a client's domain, on rule 5.
+printf 'Write to someone@acme.darthealth.com\n' > "$root/docs/query.md"
 out="$("$scripts/check-spec.sh" "$root" 2>&1)"
-if printf '%s\n' "$out" | grep -qx 'FAIL docs/query.md: rule 3: URL host not allowed: acme\.darthealth\.com'; then
-  echo "ok: a client host in link text is named"
+if ! printf '%s\n' "$out" | grep -qx 'FAIL docs/query.md: rule 5: email not allowed: (domain not printed)'; then
+  bad "a client email isn't withheld: $out"
+elif printf '%s\n' "$out" | grep -q 'acme'; then
+  bad "a client email: output names a client: $out"
 else
-  bad "a client host in link text: $out"
+  echo "ok: withholds the client in an email"
 fi
 out="$("$scripts/check-spec.sh" "$work/rule3-host-query" 2>&1)"
 if printf '%s\n' "$out" | grep -qx 'FAIL README.md: rule 3: URL host not allowed: internal\.example-corp\.io'; then

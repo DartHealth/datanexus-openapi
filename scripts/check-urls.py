@@ -8,8 +8,8 @@ before anything is decoded, then the host and path decoded (percent escapes
 and HTML character references, until neither changes anything), the host
 lowercased and a numeric port dropped. Prints one failure
 message per line and nothing when the file passes. Never prints userinfo, a
-production path, or a host from a line that carries userinfo or fails on a
-production path.
+production path, a client's darthealth.com name, or a host from a line that
+carries userinfo or a production URL.
 Usage: check-urls.py FILE
 """
 import html
@@ -78,7 +78,9 @@ def extent(t, i):
     link destination or an HTML attribute the text glued after its end."""
     before, rest = t[:i], t[i:]
     if before.endswith(('="', "='")):  # an HTML attribute ends at its quote; markup follows
-        url, _, after = rest.partition(before[-1])
+        url, quote, after = rest.partition(before[-1])
+        if not quote:  # the value runs onto the next line, and a browser drops the line break
+            return url, "/"
         glued = re.split(f"[{WS}<]", after, maxsplit=1)[0]
         # GFM autolinks on through the quote, and every check of the tag around it has
         # been fooled, so only a tag closed with nothing that could carry a path is let
@@ -120,7 +122,8 @@ def check(url, glued, n, secret):
     if re.search(r"[/?#@:]", host):
         return f"a URL's host can't be parsed at line {n} (not printed)"
     if host not in ALLOWED and not host.endswith(RESERVED):
-        if secret or not re.fullmatch(r"[a-z0-9.-]+", host):
+        # Any other darthealth.com name is a client's instance, never named in public
+        if secret or not re.fullmatch(r"[a-z0-9.-]+", host) or re.search(r"(^|\.)darthealth\.com\.*$", host):
             return f"URL host not allowed at line {n} (not printed)"
         return f"URL host not allowed: {host}"
     # The path may name a record; the query can carry one too (?url=/admin/...),
@@ -156,7 +159,7 @@ def main(path):
                 hosts = {m.end() for m in urls}
                 found += [(t, m.start(), "//", m.end()) for m in NAME.finditer(t) if m.start() not in hosts
                           and (i == len(layers) - 1 or t[m.start() - 1:m.start()] != "%")]
-            line_failures = []
+            line_failures, prod = [], False
             for t, start, prefix, end in found:
                 # GFM never autolinks a schemeless name, so it ends with its hostname
                 # unless what follows could carry a path, port or userinfo (\ is / by now)
@@ -164,11 +167,16 @@ def main(path):
                     url, glued = t[start:end], ""
                 else:
                     url, glued = extent(t, start)
+                try:
+                    prod |= split(prefix + url)[1] in PROD
+                except ValueError:
+                    prod = True  # a host that can't be parsed may be a production one
                 failure = check(prefix + url, glued, n, secret)
                 if failure:
                     line_failures.append(failure)
-            # A host nested in a production URL's query or fragment is part of its path
-            if any(f.startswith("path not allowed on ") for f in line_failures):
+            # A host nested in a production URL's query or fragment is part of its path,
+            # even when that URL fails on something else first, such as its port
+            if prod:
                 line_failures = [f"URL host not allowed at line {n} (not printed)"
                                  if f.startswith("URL host not allowed: ") else f for f in line_failures]
             failures.update(dict.fromkeys(line_failures))
