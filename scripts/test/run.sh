@@ -188,7 +188,7 @@ for text in 'https://datanexus.darthealth.com/api/openapi)x/admin/sponsor_member
   '<a href="https://datanexus.darthealth.com/api/openapi?url=&sol;admin&sol;sponsor_members&sol;1">spec</a>' \
   '[a](https://datanexus.darthealth.com/api/openapi)&sol;admin&sol;sponsor_members' \
   '[a](https://datanexus.darthealth.com/api/openapi?x=&#37;2Fadmin)' 'acme&period;darthealth&period;com' \
-  '%client.darthealth.com' 'Uptime 100%zz-acme.darthealth.com' '50%-acme.darthealth.com'; do
+  'acme&#46;darthealth&#46;com' '%client.darthealth.com' 'Uptime 100%zz-acme.darthealth.com' '50%-acme.darthealth.com'; do
   printf 'See %s\n' "$text" > "$root/docs/query.md"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
     bad "$text passed but should fail on rule 3"
@@ -198,6 +198,23 @@ for text in 'https://datanexus.darthealth.com/api/openapi)x/admin/sponsor_member
     bad "$text: output prints the path: $out"
   else
     echo "ok: fails $text"
+  fi
+done
+# A host nested in a production URL's query or fragment is part of its path, so
+# it is never printed either: every host on a line with a path failure is withheld.
+for text in 'https://datanexus.darthealth.com/api/openapi?url=//john.doe.example-corp.io' \
+  'https://datanexus.darthealth.com/api/openapi?url=%2F%2Fjohn.doe.example-corp.io' \
+  'https://datanexus.darthealth.com/api/openapi?url=&sol;&sol;john.doe.example-corp.io' \
+  '[a](https://datanexus.darthealth.com/api/openapi#&sol;&sol;sponsor.members.io)'; do
+  printf 'See %s\n' "$text" > "$root/docs/query.md"
+  if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
+    bad "$text passed but should fail on rule 3"
+  elif ! printf '%s\n' "$out" | grep -q ": rule 3:"; then
+    bad "$text failed, but not on rule 3: $out"
+  elif printf '%s\n' "$out" | grep -qE 'john\.doe|example-corp|sponsor\.members|admin'; then
+    bad "$text: output prints a host from the production path: $out"
+  else
+    echo "ok: withholds hosts on $text"
   fi
 done
 # cmark-gfm's whitespace is ASCII only, so a link runs on through NBSP, U+3000 or \x1f.

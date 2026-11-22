@@ -8,7 +8,8 @@ before anything is decoded, then the host and path decoded (percent escapes
 and HTML character references, until neither changes anything), the host
 lowercased and a numeric port dropped. Prints one failure
 message per line and nothing when the file passes. Never prints userinfo, a
-production path, or a host from a line that carries userinfo.
+production path, or a host from a line that carries userinfo or fails on a
+production path.
 Usage: check-urls.py FILE
 """
 import html
@@ -41,7 +42,8 @@ WS = " \t\n\v\f\r"  # cmark-gfm's whitespace; Python's \s also takes NBSP, U+300
 
 def peel(s):
     """One decoding layer: percent-decoding, or once that changes nothing, the
-    character references CommonMark decodes in a link and a browser in an attribute"""
+    character references CommonMark decodes in a link and a browser in an attribute.
+    html.unescape also decodes some references without a ;, which fails closed."""
     d = unquote(s)
     return (d if d != s else html.unescape(s)).replace("\\", "/")
 
@@ -154,6 +156,7 @@ def main(path):
                 hosts = {m.end() for m in urls}
                 found += [(t, m.start(), "//", m.end()) for m in NAME.finditer(t) if m.start() not in hosts
                           and (i == len(layers) - 1 or t[m.start() - 1:m.start()] != "%")]
+            line_failures = []
             for t, start, prefix, end in found:
                 # GFM never autolinks a schemeless name, so it ends with its hostname
                 # unless what follows could carry a path, port or userinfo (\ is / by now)
@@ -163,7 +166,12 @@ def main(path):
                     url, glued = extent(t, start)
                 failure = check(prefix + url, glued, n, secret)
                 if failure:
-                    failures[failure] = None
+                    line_failures.append(failure)
+            # A host nested in a production URL's query or fragment is part of its path
+            if any(f.startswith("path not allowed on ") for f in line_failures):
+                line_failures = [f"URL host not allowed at line {n} (not printed)"
+                                 if f.startswith("URL host not allowed: ") else f for f in line_failures]
+            failures.update(dict.fromkeys(line_failures))
     for failure in failures:
         print(failure)
 
