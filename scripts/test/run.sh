@@ -23,6 +23,21 @@ else
   bad "pass fixture failed: $out"
 fi
 
+# A root missing a file every published copy needs fails on rule 1.
+for req in README.md docs/when-to-use.md; do
+  root="$work/missing-${req//\//-}"
+  mkdir -p "$root"
+  cp -R "$fixtures/pass/." "$root/"
+  rm "$root/$req"
+  if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
+    bad "missing $req passed but should fail on rule 1"
+  elif ! printf '%s\n' "$out" | grep -q "^FAIL $req: rule 1:"; then
+    bad "missing $req failed, but not on rule 1: $out"
+  else
+    echo "ok: missing $req"
+  fi
+done
+
 # Each failing fixture fails, and fails on the rule its name says.
 for case_dir in "$fixtures"/rule*; do
   name="$(basename "$case_dir")"
@@ -43,14 +58,31 @@ done
 
 # A URL's credentials never appear in the failure output.
 # The script lowercases hosts, so match case-insensitively.
-for name in rule3-credentials rule3-credentials-query rule3-credentials-fragment rule3-port-token rule3-nested-url-encoded-credentials; do
+for name in rule3-credentials rule3-credentials-query rule3-credentials-fragment rule3-credentials-subdomain-password rule3-port-token rule3-nested-url-encoded-credentials \
+  rule3-credentials-protocol-relative rule3-credentials-no-scheme rule3-credentials-no-scheme-subdomain-password \
+  rule3-credentials-password-slash rule3-credentials-encoded-slash rule3-nested-url-encoded-slash-credentials; do
   root="$work/$name"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
     bad "$name: passed but should fail"
-  elif printf '%s\n' "$out" | grep -qiE 'deploy|s3cretTok'; then
+  elif printf '%s\n' "$out" | grep -qiE 'deploy|s3cret|tok\.darthealth'; then
     bad "$name: output prints the URL's userinfo: $out"
   else
     echo "ok: $name credentials are not printed"
+  fi
+done
+
+# A path on the production host never appears in the failure output: it may name a record.
+for name in rule3-admin-path rule3-prod-path-dotdot rule3-prod-path-encoded-dotdot rule3-prod-path-openapi-dotdot \
+  rule3-prod-path-comma-dotdot rule3-prod-path-protocol-relative rule3-prod-path-no-scheme rule3-prod-path-api \
+  rule3-prod-path-backslash rule3-prod-path-paren-dotdot rule3-prod-path-quote-dotdot rule3-prod-path-query-path \
+  rule3-prod-path-adjacent-link rule3-prod-path-comma-link rule3-prod-host-encoded-path rule3-prod-host-nested-double-encoded \
+  rule3-prod-path-paren-encoded-dotdot rule3-prod-path-query-encoded-path rule3-prod-path-query-backslash \
+  rule3-mailto-client-host rule3-instance-admin-path rule3-prod-path-after-paren; do
+  out="$("$scripts/check-spec.sh" "$work/$name" 2>&1)"
+  if printf '%s\n' "$out" | grep -qE 'sponsor_members|admin/users|api/members'; then
+    bad "$name: output prints the path: $out"
+  else
+    echo "ok: $name path is not printed"
   fi
 done
 
@@ -59,7 +91,32 @@ done
 root="$work/allowed-query"
 mkdir -p "$root"
 cp -R "$fixtures/pass/." "$root/"
-for url in 'https://www.darthealth.com?utm=x' 'https://www.darthealth.com#faq' 'https://www.darthealth.com?ref=a@b'; do
+for url in 'https://www.darthealth.com?utm=x' 'https://www.darthealth.com#faq' 'https://www.darthealth.com?ref=a@b' \
+  'https://www.darthealth.com.' 'https://www.darthealth.com, then' 'https://www.darthealth.com;' 'https://www.darthealth.com:' \
+  'https://datanexus.darthealth.com?ref=x' 'https://datanexus.darthealth.com/?ref=x' 'https://datanexus.darthealth.com#top' \
+  'https://customer.darthealth.com.example/' 'customer.darthealth.com.au' \
+  'https://datanexus.darthealth.com/api/openapi' 'https://datanexus.darthealth.com/api/openapi?ref=x' 'https://datanexus.darthealth.com/api/openapi#top' \
+  'https://datanexus.darthealth.com/api/openapi, then fetch it.' 'https://datanexus.darthealth.com/api/openapi.' \
+  'Email hello@darthealth.com' 'mailto:hello@darthealth.com' \
+  'Fetch datanexus.darthealth.com... then parse.' '[spec](https://datanexus.darthealth.com/api/openapi)...' \
+  'https://datanexus.darthealth.com/api/openapi/' 'https://datanexus.darthealth.com:443/api/openapi' \
+  'x = 1; //TODO fix' 'acme.darthealth.com-old.org' \
+  "[spec](https://datanexus.darthealth.com/api/openapi)'s" '[a](https://datanexus.darthealth.com/api/openapi) and [b](https://github.com/x)' \
+  '[a](https://datanexus.darthealth.com/api/openapi) and [b](//github.com/x)' '(https://datanexus.darthealth.com/api/openapi), then' \
+  'Have you read [the spec](https://datanexus.darthealth.com/api/openapi)?' '(see https://datanexus.darthealth.com/api/openapi)?' \
+  '[the spec](https://datanexus.darthealth.com/api/openapi)?!' '[the spec](https://datanexus.darthealth.com/api/openapi)#' \
+  '<a href="https://datanexus.darthealth.com/api/openapi">spec</a>' '<img src="https://datanexus.darthealth.com/api/openapi"/>' \
+  '<a class="x" href="https://datanexus.darthealth.com/api/openapi" target="_blank">spec</a>' \
+  '| [spec](https://datanexus.darthealth.com/api/openapi) | [x](https://github.com/x) |' \
+  '[trust.darthealth.com](https://trust.darthealth.com/)' '[www.darthealth.com](https://www.darthealth.com/)' \
+  '[datanexus.darthealth.com](https://datanexus.darthealth.com/api/openapi)' '[https://github.com](https://github.com)' \
+  '[https://www.darthealth.com](https://www.darthealth.com/)' \
+  '[`{instance}.darthealth.com`](https://www.darthealth.com/)' '[**trust.darthealth.com**](https://trust.darthealth.com/)' \
+  '[see trust.darthealth.com](https://trust.darthealth.com/)' "datanexus.darthealth.com's spec" \
+  "the {instance}.darthealth.com's root" 'trust.darthealth.com]' 'https://trust.darthealth.com]' \
+  '| datanexus.darthealth.com|' '| trust.darthealth.com|x |' \
+  '[a](https://www.darthealth.com/?a=1&amp;b=2)' '[spec](https://datanexus.darthealth.com/api/openapi)' \
+  'Fish &amp; chips at https://www.darthealth.com/'; do
   printf 'See %s\n' "$url" > "$root/docs/query.md"
   if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
     echo "ok: allowed $url"
@@ -67,6 +124,145 @@ for url in 'https://www.darthealth.com?utm=x' 'https://www.darthealth.com#faq' '
     bad "allowed $url failed: $out"
   fi
 done
+
+# A path past a link closer on the production host, or a client host after a
+# literal %, fails on rule 3, and the path is never printed.
+# Accepted cost: a production URL with a scheme fails as its own link text.
+# Accepted cost: a link glued with no space onto a production destination's ) fails.
+# So does a compact table cell |[spec](…/api/openapi)|[x](…)|: put spaces around |.
+# So does a production attribute's tag whose text holds / ? # or \: <a href="…/api/openapi">api/openapi</a>.
+# So does a production URL in an attribute whose value wraps a line.
+for text in 'https://datanexus.darthealth.com/api/openapi)x/admin/sponsor_members/1' \
+  "https://datanexus.darthealth.com/api/openapi)'s/admin/sponsor_members/1" \
+  'https://datanexus.darthealth.com/api/openapi)./admin/sponsor_members/1' \
+  'https://datanexus.darthealth.com/api/openapi)//admin/sponsor_members/1' \
+  'https://datanexus.darthealth.com/api/openapi)?u=/admin/sponsor_members/1' \
+  'https://datanexus.darthealth.com/api/openapi)#/admin/sponsor_members/1' \
+  'https://datanexus.darthealth.com/api/openapi)[/admin/sponsor_members/1' \
+  'https://datanexus.darthealth.com/api/openapi)x[/admin/sponsor_members/1' \
+  'https://datanexus.darthealth.com/api/openapi)[b]/admin/sponsor_members/1' \
+  'https://datanexus.darthealth.com/api/openapi)//github.com/admin/sponsor_members/1' \
+  'https://datanexus.darthealth.com/api/openapi)https://github.com/admin/sponsor_members/1' \
+  '[x](https://datanexus.darthealth.com/admin/sponsor_members/1)' 'datanexus.darthealth.com%2Fadmin%2Fsponsor_members%2F1' \
+  '[https://datanexus.darthealth.com/admin/sponsor_members/1](https://www.darthealth.com/)' \
+  '[datanexus.darthealth.com/admin/sponsor_members/1](https://www.darthealth.com/)' \
+  '\[ https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1' \
+  '`[` https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1)' \
+  '[a](https://github.com/x[) https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1)' \
+  'https://github.com/x?u=[https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1' \
+  'https://github.com/x?u=%5Bhttps://datanexus.darthealth.com/api/openapi%5D%28/admin/sponsor_members/1' \
+  '\[ https://datanexus.darthealth.com/api/openapi](https://github.com/admin/sponsor_members/1' \
+  '[https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1' \
+  '[ https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1' \
+  '[x https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1 x)' \
+  'https://github.com/x?u=([https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1' \
+  'https://github.com/x?u=*[https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1' \
+  '[a](<https://github.com/x [>) https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1' \
+  '`` [ `` https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1' \
+  '<span title=" ["> https://datanexus.darthealth.com/api/openapi](/admin/sponsor_members/1' \
+  '[https://datanexus.darthealth.com/api/openapi](https://datanexus.darthealth.com/api/openapi)' \
+  '**[https://datanexus.darthealth.com/api/openapi](https://datanexus.darthealth.com/api/openapi)**' \
+  '([https://datanexus.darthealth.com/api/openapi](https://datanexus.darthealth.com/api/openapi)).' \
+  'x](https://datanexus.darthealth.com/api/openapi)[/admin/sponsor_members/1' \
+  '\[a](https://datanexus.darthealth.com/api/openapi)[/admin/sponsor_members/1' \
+  'x](https://datanexus.darthealth.com/api/openapi)x[/admin/sponsor_members/1' \
+  'x](https://datanexus.darthealth.com/api/openapi)[b](/admin/sponsor_members/1' \
+  '`[a`](https://datanexus.darthealth.com/api/openapi)[/admin/sponsor_members/1' \
+  'x](//datanexus.darthealth.com/api/openapi)[/admin/sponsor_members/1' \
+  'x](https://%7Binstance%7D.darthealth.com/api/openapi)[/admin/sponsor_members/1' \
+  'x="https://datanexus.darthealth.com/api/openapi"/admin/sponsor_members/1' \
+  'x="https://datanexus.darthealth.com/api/openapi">/admin/sponsor_members/1' \
+  "x='https://datanexus.darthealth.com/api/openapi'>/admin/sponsor_members/1" \
+  'x="https://datanexus.darthealth.com/api/openapi"/>/admin/sponsor_members/1' \
+  'x="https://datanexus.darthealth.com/api/openapi"x>/admin/sponsor_members/1' \
+  '<a href="https://datanexus.darthealth.com/api/openapi"x>/admin/sponsor_members/1' \
+  '<a href="https://datanexus.darthealth.com/api/openapi"/x>/admin/sponsor_members/1' \
+  '[t](f (<a x=y)) href="https://datanexus.darthealth.com/api/openapi">/admin/sponsor_members/1' \
+  '![t](f (<a x=y)) href="https://datanexus.darthealth.com/api/openapi">/admin/sponsor_members/1' \
+  "[t](f '<a x=\"y')\" href=\"https://datanexus.darthealth.com/api/openapi\">/admin/sponsor_members/1" \
+  '<a href="https://datanexus.darthealth.com/api/openapi">api/openapi</a>' \
+  '[a](https://datanexus.darthealth.com/api/openapi)[b](https://github.com/x)' \
+  '[a](https://datanexus.darthealth.com/api/openapi?url=&sol;admin&sol;sponsor_members&sol;1)' \
+  '[a](https://datanexus.darthealth.com/api/openapi?url=&#47;admin&#47;sponsor_members&#47;1)' \
+  '[a](https://datanexus.darthealth.com/api/openapi#&sol;admin&sol;sponsor_members&sol;1)' \
+  '<https://datanexus.darthealth.com/api/openapi?url=&sol;admin&sol;sponsor_members&sol;1>' \
+  '<a href="https://datanexus.darthealth.com/api/openapi?url=&sol;admin&sol;sponsor_members&sol;1">spec</a>' \
+  '[a](https://datanexus.darthealth.com/api/openapi)&sol;admin&sol;sponsor_members' \
+  '[a](https://datanexus.darthealth.com/api/openapi?x=&#37;2Fadmin)' 'acme&period;darthealth&period;com' \
+  'acme&#46;darthealth&#46;com' '%client.darthealth.com' 'Uptime 100%zz-acme.darthealth.com' '50%-acme.darthealth.com' \
+  $'<a href="https://datanexus.darthealth.com\n/admin/sponsor_members/1">spec</a>' \
+  $'<a href=\'https://datanexus.darthealth.com/api/openapi\n/../../admin/sponsor_members/1\'>x</a>' \
+  $'<a href="https://{instance}.darthealth.com/\nadmin/sponsor_members/1">x</a>'; do
+  printf 'See %s\n' "$text" > "$root/docs/query.md"
+  if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
+    bad "$text passed but should fail on rule 3"
+  elif ! printf '%s\n' "$out" | grep -q ": rule 3:"; then
+    bad "$text failed, but not on rule 3: $out"
+  elif printf '%s\n' "$out" | grep -q 'sponsor_members'; then
+    bad "$text: output prints the path: $out"
+  else
+    echo "ok: fails $text"
+  fi
+done
+# A host nested in a production URL's query or fragment is part of its path, so
+# it is never printed either: every host on a line with a path failure is withheld.
+for text in 'https://datanexus.darthealth.com/api/openapi?url=//john.doe.example-corp.io' \
+  'https://datanexus.darthealth.com/api/openapi?url=%2F%2Fjohn.doe.example-corp.io' \
+  'https://datanexus.darthealth.com/api/openapi?url=&sol;&sol;john.doe.example-corp.io' \
+  '[a](https://datanexus.darthealth.com/api/openapi#&sol;&sol;sponsor.members.io)' \
+  'https://datanexus.darthealth.com:x/admin/(//john.doe.example-corp.io'; do
+  printf 'See %s\n' "$text" > "$root/docs/query.md"
+  if out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
+    bad "$text passed but should fail on rule 3"
+  elif ! printf '%s\n' "$out" | grep -q ": rule 3:"; then
+    bad "$text failed, but not on rule 3: $out"
+  elif printf '%s\n' "$out" | grep -qE 'john\.doe|example-corp|sponsor\.members|admin'; then
+    bad "$text: output prints a host from the production path: $out"
+  else
+    echo "ok: withholds hosts on $text"
+  fi
+done
+# cmark-gfm's whitespace is ASCII only, so a link runs on through NBSP, U+3000 or \x1f.
+# A non-production URL fails on one only directly after its host, as host-not-allowed, as GFM's href would.
+for ws in $'\xc2\xa0' $'\xe3\x80\x80' $'\x1f'; do
+  for text in "x](https://datanexus.darthealth.com/api/openapi)${ws}/admin/sponsor_members/1" \
+    "https://datanexus.darthealth.com/api/openapi${ws}/admin/sponsor_members/1" "https://github.com${ws}x"; do
+    printf 'See %s\n' "$text" > "$root/docs/query.md"
+    if ! grep -qF "$ws" "$root/docs/query.md"; then
+      bad "$text: the whitespace byte didn't reach the file"
+    elif out="$("$scripts/check-spec.sh" "$root" 2>&1)"; then
+      bad "$text passed but should fail on rule 3"
+    elif ! printf '%s\n' "$out" | grep -q ": rule 3:"; then
+      bad "$text failed, but not on rule 3: $out"
+    elif printf '%s\n' "$out" | grep -q 'sponsor_members'; then
+      bad "$text: output prints the path: $out"
+    else
+      echo "ok: fails $text"
+    fi
+  done
+done
+# A client host, bare or used as link text up to the ] that closes it, fails without its name.
+for text in '[acme.darthealth.com](https://www.darthealth.com/)' 'acme.darthealth.com'; do
+  printf 'See %s\n' "$text" > "$root/docs/query.md"
+  out="$("$scripts/check-spec.sh" "$root" 2>&1)"
+  if ! printf '%s\n' "$out" | grep -qx 'FAIL docs/query.md: rule 3: URL host not allowed at line 1 (not printed)'; then
+    bad "$text: a client host isn't withheld: $out"
+  elif printf '%s\n' "$out" | grep -q 'acme'; then
+    bad "$text: output names a client: $out"
+  else
+    echo "ok: withholds the client in $text"
+  fi
+done
+# So does an email on a client's domain, on rule 5.
+printf 'Write to someone@acme.darthealth.com\n' > "$root/docs/query.md"
+out="$("$scripts/check-spec.sh" "$root" 2>&1)"
+if ! printf '%s\n' "$out" | grep -qx 'FAIL docs/query.md: rule 5: email not allowed: (domain not printed)'; then
+  bad "a client email isn't withheld: $out"
+elif printf '%s\n' "$out" | grep -q 'acme'; then
+  bad "a client email: output names a client: $out"
+else
+  echo "ok: withholds the client in an email"
+fi
 out="$("$scripts/check-spec.sh" "$work/rule3-host-query" 2>&1)"
 if printf '%s\n' "$out" | grep -qx 'FAIL README.md: rule 3: URL host not allowed: internal\.example-corp\.io'; then
   echo "ok: disallowed host is named without its query"
@@ -79,6 +275,7 @@ raw="$work/raw.json"
 jq '.servers = [{"url": "/", "variables": {}}]' "$fixtures/pass/openapi.json" > "$raw"
 dir="$work/refresh"
 mkdir -p "$dir"
+cp -R "$fixtures/pass/." "$dir/"
 jq 'del(.paths["/api/members"])' "$fixtures/pass/openapi.json" > "$dir/openapi.json"
 # stderr is dropped so a check-spec call that loses its >&2 shows up in stdout.
 if out="$(SPEC_URL="file://$raw" SPEC_DIR="$dir" "$scripts/refresh-spec.sh" 2>/dev/null)"; then
@@ -124,6 +321,23 @@ for src in "file://$work/missing.json" "file://$work/html.json" "file://$work/le
     echo "ok: refresh refuses $(basename "$src")"
   fi
 done
+
+# refresh-spec.sh: a missing README.md reaches check-spec's rule 1 message and
+# leaves openapi.json untouched.
+nodoc="$work/refresh-no-readme"
+mkdir -p "$nodoc"
+cp -R "$fixtures/pass/." "$nodoc/"
+rm "$nodoc/README.md"
+cp "$nodoc/openapi.json" "$work/before-no-readme.json"
+if out="$(SPEC_URL="file://$raw" SPEC_DIR="$nodoc" "$scripts/refresh-spec.sh" 2>&1)"; then
+  bad "refresh succeeded without README.md"
+elif ! printf '%s\n' "$out" | grep -q "required file is missing"; then
+  bad "refresh without README.md did not report the missing file: $out"
+elif ! cmp -s "$work/before-no-readme.json" "$nodoc/openapi.json"; then
+  bad "refresh changed openapi.json after failing without README.md"
+else
+  echo "ok: refresh reports a missing README.md"
+fi
 
 # refresh-spec.sh: a change report that fails (here, on an unreadable
 # previous copy) leaves openapi.json untouched.

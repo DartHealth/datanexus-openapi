@@ -29,6 +29,11 @@ else
   fi
 fi
 
+# Rule 1, too: the files every published copy carries are present
+for req in README.md docs/when-to-use.md; do
+  [ -f "$root/$req" ] || fail "$req" 1 "required file is missing"
+done
+
 files=()
 for f in "$spec" "$root/README.md"; do
   [ -f "$f" ] && files+=("$f")
@@ -36,40 +41,6 @@ done
 if [ -d "$root/docs" ]; then
   while IFS= read -r f; do files+=("$f"); done < <(find "$root/docs" -type f | sort)
 fi
-
-host_allowed() {
-  case "$1" in
-    darthealth.com | www.darthealth.com | datanexus.darthealth.com | trust.darthealth.com) return 0 ;;
-    "{instance}.darthealth.com" | github.com | raw.githubusercontent.com | rubygems.org) return 0 ;;
-    *.test | *.example | *.invalid | example.com | example.org | example.net) return 0 ;;
-  esac
-  return 1
-}
-
-# Rule 3 for one URL, given without its scheme://. Never prints userinfo.
-check_url_host() {
-  local rel="$1" rest="$2" host port
-  host="${rest%%[/?#]*}"  # the authority ends at the path, query or fragment
-  case "$host" in
-    *@*) fail "$rel" 3 "a URL carries credentials (not printed)"; return ;;
-  esac
-  case "$host" in
-    *:*)
-      port="${host#*:}"
-      host="${host%%:*}"
-      case "$port" in
-        *[!0-9]*) fail "$rel" 3 "a URL's port isn't a number (not printed)"; return ;;
-      esac
-      ;;
-  esac
-  host="$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')"
-  host_allowed "$host" && return
-  # A ? or # inside userinfo cuts the authority short, so what's left may be a secret
-  case "${rest%%/*}" in
-    *@*) fail "$rel" 3 "URL host not allowed (not printed: it may carry credentials)" ;;
-    *) fail "$rel" 3 "URL host not allowed: $host" ;;
-  esac
-}
 
 email_allowed() {
   case "$1" in
@@ -88,16 +59,11 @@ host_reserved() {
 for f in ${files[@]+"${files[@]}"}; do
   rel="${f#"$root"/}"
 
-  # Rule 3: every URL's host, whatever its scheme, is on the allowlist,
-  # including a URL nested in another URL's query, percent-encoded or not
-  while IFS= read -r url; do
-    while [ -n "$url" ]; do
-      rest="${url#*://}"
-      check_url_host "$rel" "$rest"
-      url="$(printf '%s' "$rest" | sed -e 's/%3[Aa]/:/g' -e 's#%2[Ff]#/#g' -e 's/%40/@/g' \
-        | grep -oiE '[a-z][a-z0-9+.-]*://.*' | head -n 1)"
-    done
-  done < <(grep -oiE '[a-z][a-z0-9+.-]*://[^][[:space:]"'"'"'<>()`,]+' "$f" || true)
+  # Rule 3: every URL and darthealth.com host is allowed (scripts/check-urls.py)
+  urls="$(python3 -I "$(dirname "$0")/check-urls.py" "$f")" || fail "$rel" 3 "check-urls.py failed"
+  if [ -n "$urls" ]; then
+    while IFS= read -r msg; do fail "$rel" 3 "$msg"; done <<< "$urls"
+  fi
 
   # Rule 4: localhost or an IPv4 address (a sentence-ending period still counts)
   if grep -qiE 'localhost|(^|[^0-9.])([0-9]{1,3}\.){3}[0-9]{1,3}\.?([^0-9.]|$)' "$f"; then
@@ -108,7 +74,9 @@ for f in ${files[@]+"${files[@]}"}; do
   while IFS= read -r email; do
     [ -z "$email" ] && continue
     lower="$(printf '%s' "$email" | tr '[:upper:]' '[:lower:]')"
-    email_allowed "$lower" || fail "$rel" 5 "email not allowed: ...@${lower#*@}"
+    domain="...@${lower#*@}"
+    case "$domain" in *[@.]darthealth.com) domain="(domain not printed)" ;; esac  # a client's name
+    email_allowed "$lower" || fail "$rel" 5 "email not allowed: $domain"
   done < <(grep -oE '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' "$f" || true)
 
   # Rule 6: SSN-shaped strings

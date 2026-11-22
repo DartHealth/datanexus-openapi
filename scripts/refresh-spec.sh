@@ -28,8 +28,12 @@ ops='[.paths // {} | to_entries[] | .key as $p | .value | keys[]
       | "\(ascii_upcase) \($p)"]'
 schemas='[.components.schemas // {} | keys[]]'
 
-# Check the candidate in a scratch root before it replaces anything.
+# Check the candidate in a scratch root, beside the published docs, before it
+# replaces anything.
 mkdir -p "$tmp/root"
+for f in README.md docs; do
+  if [ -e "$dir/$f" ]; then cp -R "$dir/$f" "$tmp/root/"; fi
+done
 cp "$tmp/openapi.json" "$tmp/root/openapi.json"
 "$here/check-spec.sh" "$tmp/root" >&2  # stdout carries only the change report
 

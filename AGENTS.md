@@ -11,6 +11,7 @@ This repository publishes the OpenAPI reference for Dart Health's Data Nexus API
 - `docs/when-to-use.md` - The fit guide
 - `scripts/refresh-spec.sh` - Fetches the live spec and reports what changed
 - `scripts/check-spec.sh` - Checks `openapi.json`, `README.md` and `docs/` before anything is published
+- `scripts/check-urls.py` - Rule 3 of check-spec: parses each URL and hostname and checks it against the allowlist
 - `scripts/test/` - Fixtures and the test runner for both scripts
 - `.github/workflows/` - CI
 
